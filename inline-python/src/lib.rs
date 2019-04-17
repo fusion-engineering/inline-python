@@ -43,5 +43,5 @@
 //! Python code back into Rust. Support for that will be added in a later
 //! version of this crate.
 
-pub use inline_python_macros::python;
+pub use inline_python_macros::{python, python_ex};
 pub use pyo3;
