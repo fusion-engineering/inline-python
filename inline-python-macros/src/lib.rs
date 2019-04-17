@@ -9,6 +9,28 @@ use std::fmt::Write;
 use std::collections::BTreeSet;
 use syn::parse_macro_input;
 
+/// Execute Python code directly from Rust.
+///
+/// The macro interprets all given tokens as Python code.
+/// See the main module documentation for more details on what is allowed in the Python code.
+/// The main module documentation also explains how to refer to Rust objects from the Python code.
+///
+/// This macro doesn't return a value.
+/// If the python code raises an error, the error is printed and the program panics.
+///
+/// See [`python_ex`] for a version that does return a value.
+///
+/// An example:
+/// ```no_run
+/// #![feature(proc_macro_hygiene)]
+/// use inline_python::python;
+/// let data = vec![(4, 3), (2, 8), (3, 1), (4, 0)];
+/// python! {
+///   import matplotlib.pyplot as plot
+///   plot.plot('data)
+///   plot.show()
+/// }
+/// ```
 #[proc_macro]
 pub fn python(input: TokenStream1) -> TokenStream1 {
 	let mut x = EmbedPython {
@@ -57,6 +79,33 @@ impl syn::parse::Parse for PythonExArgs {
 	}
 }
 
+
+/// Execute Python code directly from Rust with a return value.
+///
+/// The macro can be invoked as `python_ex!(python, code ...)`, where the first argument is a `pyo3::Python` object.
+/// See the main module documentation for more details on what is allowed in the Python code.
+/// The main module documentation also explains how to refer to Rust objects from the Python code.
+///
+/// This macro returns the evaluation result of the python code.
+/// If the python code raises an error, it is returned as an `Err(pyo3::PyErr)`.
+/// If the code runs successfully, the value is returned as `Ok(pyo3::PyAny)`.
+///
+/// See [`python_ex`] for a version that does return a value.
+///
+/// An example:
+/// ```no_run
+/// #![feature(proc_macro_hygiene)]
+/// use inline_python::{pyo3, python_ex, pyo3::FromPyObject};
+/// # fn main() -> pyo3::PyResult<()> {
+/// let gil       = pyo3::Python::acquire_gil();
+///
+/// let result = python_ex!{gil.python(), 1 + 1}?;
+/// let result = u32::extract(result)?;
+/// assert_eq!(result, 2);
+///
+/// #  Ok(())
+/// # }
+/// ```
 #[proc_macro]
 pub fn python_ex(input: TokenStream1) -> TokenStream1 {
 	let PythonExArgs {
