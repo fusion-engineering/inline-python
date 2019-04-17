@@ -1,0 +1,16 @@
+[package]
+name = "inline-python-macros"
+version = "0.1.0"
+authors = ["Mara Bos <m-ou.se@m-ou.se>"]
+description = "Macros for the inline-python crate"
+license = "BSD-2-Clause"
+edition = "2018"
+repository = "https://github.com/dronesforwork/inline-python"
+
+[lib]
+proc_macro = true
+
+[dependencies]
+proc-macro2 = { version = "0.4", features = ["span-locations"] }
+quote = "0.6"
+syn = { version = "0.15", features = ["parsing"] }
