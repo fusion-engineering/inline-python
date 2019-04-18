@@ -25,7 +25,7 @@
 //!
 //! ## Using Rust variables
 //!
-//! To reference rust variables, use `'var`, as shown in the example above.
+//! To reference Rust variables, use `'var`, as shown in the example above.
 //! `var` needs to implement [`pyo3::ToPyObject`].
 //!
 //! ## Getting information back
