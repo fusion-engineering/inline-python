@@ -62,7 +62,7 @@
 //!
 //! - Triple-quoted byte- and raw-strings with content that would not be valid
 //!   as a regular string. And the same for raw-byte and raw-format strings.
-//!   (E.g. `b"""\xFF"""` and `r"""\z"""`, `fr"\z"`, `br"\xFF"`.)
+//!   (E.g. `b"""\xFF"""`, `r"""\z"""`, `fr"\z"`, `br"\xFF"`.)
 //!
 //!   Other triple-quoted strings are accepted just fine though:
 //!   E.g. `"""hello"""`, `b"""hello"""`, `r"""\n"""`, `fr"\n"`, `br"123"`.
