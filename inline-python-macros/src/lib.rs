@@ -116,7 +116,7 @@ impl EmbedPython {
 						let name = if let Some(TokenTree::Ident(name)) = tokens.next() {
 							name
 						} else {
-							panic!()
+							unreachable!()
 						};
 						let pyname = format!("_rust_{}", name);
 						let name_str = name.to_string();
