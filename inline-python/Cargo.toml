@@ -1,6 +1,6 @@
 [package]
 name = "inline-python"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Mara Bos <m-ou.se@m-ou.se>"]
 description = "Inline Python code directly in your Rust code"
 license = "BSD-2-Clause"
@@ -9,5 +9,5 @@ repository = "https://github.com/dronesforwork/inline-python"
 keywords = ["python", "inline", "embed", "macro"]
 
 [dependencies]
-inline-python-macros = { version = "0.1", path = "../inline-python-macros" }
+inline-python-macros = { version = "=0.2.0", path = "../inline-python-macros" }
 pyo3 = "0.6"

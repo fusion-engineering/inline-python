@@ -1,6 +1,6 @@
 [package]
 name = "inline-python-macros"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Mara Bos <m-ou.se@m-ou.se>"]
 description = "Macros for the inline-python crate"
 license = "BSD-2-Clause"
