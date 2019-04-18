@@ -3,7 +3,7 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream as TokenStream1;
-use proc_macro2::{Delimiter, Spacing, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, LineColumn, Spacing, TokenStream, TokenTree};
 use quote::quote;
 use std::collections::BTreeSet;
 use std::fmt::Write;
@@ -14,8 +14,8 @@ pub fn python(input: TokenStream1) -> TokenStream1 {
 		python: String::new(),
 		variables: TokenStream::new(),
 		variable_names: BTreeSet::new(),
-		line: 0,
-		indent: None,
+		loc: LineColumn { line: 1, column: 0 },
+		first_indent: None,
 	};
 
 	x.add(TokenStream::from(input));
@@ -46,37 +46,55 @@ struct EmbedPython {
 	python: String,
 	variables: TokenStream,
 	variable_names: BTreeSet<String>,
-	line: usize,
-	indent: Option<usize>,
+	first_indent: Option<usize>,
+	loc: LineColumn,
 }
 
 impl EmbedPython {
+	fn add_whitespace(&mut self, loc: LineColumn) {
+		if loc.line > self.loc.line {
+			while loc.line > self.loc.line {
+				self.python.push('\n');
+				self.loc.line += 1;
+			}
+			let first_indent = *self.first_indent.get_or_insert(loc.column);
+			let indent = loc.column.checked_sub(first_indent);
+			let indent =
+				indent.unwrap_or_else(|| panic!("Invalid indentation on line {}", loc.line));
+			for _ in 0..indent {
+				self.python.push(' ');
+			}
+			self.loc.column = loc.column;
+		} else if loc.line == self.loc.line {
+			while loc.column > self.loc.column {
+				self.python.push(' ');
+				self.loc.column += 1;
+			}
+		}
+	}
+
 	fn add(&mut self, input: TokenStream) {
 		let mut tokens = input.into_iter();
 
 		while let Some(token) = tokens.next() {
-			let loc = token.span().start();
-
-			if loc.line != self.line {
-				self.python.push('\n');
-				let indent = *self.indent.get_or_insert(loc.column);
-				for _ in 0..(loc.column.saturating_sub(indent)) {
-					self.python.push(' ');
-				}
-				self.line = loc.line;
-			}
+			self.add_whitespace(token.span().start());
 
 			match &token {
 				TokenTree::Group(x) => {
 					let (start, end) = match x.delimiter() {
-						Delimiter::Parenthesis => ('(', ')'),
-						Delimiter::Brace => ('{', '}'),
-						Delimiter::Bracket => ('[', ']'),
-						Delimiter::None => (' ', ' '),
+						Delimiter::Parenthesis => ("(", ")"),
+						Delimiter::Brace => ("{", "}"),
+						Delimiter::Bracket => ("[", "]"),
+						Delimiter::None => ("", ""),
 					};
-					self.python.push(start);
+					self.python.push_str(start);
+					self.loc.column += start.len();
 					self.add(x.stream());
-					self.python.push(end);
+					let mut end_loc = token.span().end();
+					end_loc.column = end_loc.column.saturating_sub(end.len());
+					self.add_whitespace(end_loc);
+					self.python.push_str(end);
+					self.loc.column += end.len();
 				}
 				TokenTree::Punct(x) => {
 					if x.as_char() == '\'' && x.spacing() == Spacing::Joint {
@@ -86,23 +104,28 @@ impl EmbedPython {
 							panic!()
 						};
 						let pyname = format!("_rust_{}", name);
-						if self.variable_names.insert(name.to_string()) {
+						let name_str = name.to_string();
+						self.python.push_str(&pyname);
+						self.loc.column += name_str.chars().count() + 1;
+						if self.variable_names.insert(name_str) {
 							self.variables.extend(quote! {
 								_python_variables.set_item(#pyname, #name)
 									.expect("Unable to convert variable to Python");
 							});
 						}
-						self.python.push_str(&pyname);
-						self.python.push(' ');
 					} else {
 						self.python.push(x.as_char());
-						if x.spacing() == Spacing::Alone {
-							self.python.push(' ');
-						}
+						self.loc.column += 1;
 					}
 				}
-				TokenTree::Ident(x) => write!(&mut self.python, "{} ", x).unwrap(),
-				TokenTree::Literal(x) => write!(&mut self.python, "{} ", x).unwrap(),
+				TokenTree::Ident(x) => {
+					write!(&mut self.python, "{}", x).unwrap();
+					self.loc = token.span().end();
+				}
+				TokenTree::Literal(x) => {
+					write!(&mut self.python, "{}", x).unwrap();
+					self.loc = token.span().end();
+				}
 			}
 		}
 	}
