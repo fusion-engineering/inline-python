@@ -128,6 +128,23 @@ impl EmbedPython {
 									.expect("Unable to convert variable to Python");
 							});
 						}
+					} else if x.as_char() == '#' && x.spacing() == Spacing::Joint {
+						// Convert '##' to '//', because otherwise it's
+						// impossible to use the Python operators '//' and '//='.
+						match tokens.next() {
+							Some(TokenTree::Punct(ref p)) if p.as_char() == '#' => {
+								self.python.push_str("//");
+								self.loc.column += 2;
+							}
+							Some(TokenTree::Punct(p)) => {
+								self.python.push(x.as_char());
+								self.python.push(p.as_char());
+								self.loc.column += 2;
+							}
+							_ => {
+								unreachable!();
+							}
+						}
 					} else {
 						self.python.push(x.as_char());
 						self.loc.column += 1;
