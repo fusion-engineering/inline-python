@@ -23,15 +23,6 @@
 //! You'll need to add `#![feature(proc_macro_hygiene)]`, and use a nightly
 //! version of the compiler that supports this feature.
 //!
-//! ## Tokens
-//!
-//! The tokens need to be valid rust tokens, which means you cannot use
-//! single-quoted strings, should use `//`-comments instead of `#`-comments,
-//! cannot use `u""`-strings, etc.
-//!
-//! A later version of this crate will provide workarounds for some of these
-//! things.
-//!
 //! ## Using Rust variables
 //!
 //! To reference rust variables, use `'var`, as shown in the example above.
@@ -42,6 +33,46 @@
 //! Right now, this crate provides no easy way to get information from the
 //! Python code back into Rust. Support for that will be added in a later
 //! version of this crate.
+//!
+//! ## Syntax issues
+//!
+//! Since the Rust tokenizer will tokenize the Python code, some valid Python
+//! code is rejected. The two main things to remember are:
+//!
+//! - Use double quoted strings (`""`) instead of single quoted strings (`''`).
+//!
+//!   (Single quoted strings only work if they contain a single character, since
+//!   in Rust, `'a'` is a character literal.)
+//!
+//! - Use `//`-comments instead of `#`-comments.
+//!
+//!   (If you use `#` comments, the Rust tokenizer will try to tokenize your
+//!   comment, and complain if your comment doesn't tokenize properly.)
+//!
+//! Other minor things that don't work are:
+//!
+//! - Certain escape codes in string literals.
+//!   (Specifically: `\a`, `\b`, `\f`, `\v`, `\N{..}`, `\123` (octal escape
+//!   codes), `\u`, and `\U`.)
+//!
+//!   These, however, are accepted just fine: `\\`, `\n`, `\t`, `\r`, `\xAB`
+//!   (hex escape codes), and `\0`
+//!
+//! - Raw string literals with escaped double quotes. (E.g. `r"...\"..."`.)
+//!
+//! - Triple-quoted byte- and raw-strings with content that would not be valid
+//!   as a regular string. And the same for raw-byte and raw-format strings.
+//!   (E.g. `b"""\xFF"""` and `r"""\z"""`, `fr"\z"`, `br"\xFF"`.)
+//!
+//!   Other triple-quoted strings are accepted just fine though:
+//!   E.g. `"""hello"""`, `b"""hello"""`, `r"""\n"""`, `fr"\n"`, `br"123"`.
+//!
+//! - The `//` and `//=` operators are unusable, as they start a comment.
+//!
+//!   Workaround: you can write `##` instead, which is automatically converted
+//!   to `//`.
+//!
+//! Everything else should work fine.
 
 pub use inline_python_macros::python;
 pub use pyo3;
