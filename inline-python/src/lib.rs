@@ -45,3 +45,39 @@
 
 pub use inline_python_macros::python;
 pub use pyo3;
+
+use pyo3::{
+	ffi,
+	types::{PyAny, PyDict},
+	AsPyPointer, PyErr, PyResult, Python,
+};
+
+#[doc(hidden)]
+pub use std::ffi::CStr;
+
+#[doc(hidden)]
+pub fn run_python_code<'p>(
+	py: Python<'p>,
+	code: &CStr,
+	filename: &CStr,
+	locals: Option<&PyDict>,
+) -> PyResult<&'p PyAny> {
+	unsafe {
+		let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
+		if mptr.is_null() {
+			return Err(PyErr::fetch(py));
+		}
+
+		let globals = ffi::PyModule_GetDict(mptr);
+		let locals = locals.map(AsPyPointer::as_ptr).unwrap_or(globals);
+
+		let cptr = ffi::Py_CompileString(code.as_ptr(), filename.as_ptr(), ffi::Py_file_input);
+		if cptr.is_null() {
+			return Err(PyErr::fetch(py));
+		}
+
+		let res_ptr = ffi::PyEval_EvalCode(cptr, globals, locals);
+
+		py.from_owned_ptr_or_err(res_ptr)
+	}
+}

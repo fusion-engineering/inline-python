@@ -1,4 +1,5 @@
 #![recursion_limit = "128"]
+#![feature(proc_macro_span)]
 
 extern crate proc_macro;
 
@@ -18,18 +19,32 @@ pub fn python(input: TokenStream1) -> TokenStream1 {
 		first_indent: None,
 	};
 
-	x.add(TokenStream::from(input));
+	x.add(TokenStream::from(input.clone()));
 
 	let EmbedPython {
-		python, variables, ..
+		mut python, variables, ..
 	} = x;
+
+	let mut filename = input.into_iter().next().map_or_else(
+		|| String::from("<unknown>"),
+		|t| t.span().source_file().path().to_string_lossy().into_owned(),
+	);
+
+	python.push('\0');
+	filename.push('\0');
 
 	let q = quote! {
 		{
 			let _python_lock = ::inline_python::pyo3::Python::acquire_gil();
 			let mut _python_variables = ::inline_python::pyo3::types::PyDict::new(_python_lock.python());
 			#variables
-			match _python_lock.python().run(#python, None, Some(_python_variables)) {
+			let r = ::inline_python::run_python_code(
+				_python_lock.python(),
+				unsafe { ::inline_python::CStr::from_bytes_with_nul_unchecked(#python.as_bytes()) },
+				unsafe { ::inline_python::CStr::from_bytes_with_nul_unchecked(#filename.as_bytes()) },
+				Some(_python_variables)
+			);
+			match r {
 				Ok(_) => (),
 				Err(e) => {
 					e.print(_python_lock.python());
