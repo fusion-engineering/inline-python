@@ -48,7 +48,7 @@ pub fn python(input: TokenStream1) -> TokenStream1 {
 				Ok(_) => (),
 				Err(e) => {
 					e.print(_python_lock.python());
-					panic!("Python code failed");
+					panic!("python!{...} failed to execute");
 				}
 			}
 		}
