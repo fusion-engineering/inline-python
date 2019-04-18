@@ -64,9 +64,6 @@
 //!   as a regular string. And the same for raw-byte and raw-format strings.
 //!   (E.g. `b"""\xFF"""`, `r"""\z"""`, `fr"\z"`, `br"\xFF"`.)
 //!
-//!   Other triple-quoted strings are accepted just fine though:
-//!   E.g. `"""hello"""`, `b"""hello"""`, `r"""\n"""`, `fr"\n"`, `br"123"`.
-//!
 //! - The `//` and `//=` operators are unusable, as they start a comment.
 //!
 //!   Workaround: you can write `##` instead, which is automatically converted
