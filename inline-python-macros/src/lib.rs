@@ -1,12 +1,12 @@
-#![recursion_limit="128"]
+#![recursion_limit = "128"]
 
 extern crate proc_macro;
 
 use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::{Delimiter, Spacing, TokenStream, TokenTree};
 use quote::quote;
-use std::fmt::Write;
 use std::collections::BTreeSet;
+use std::fmt::Write;
 
 #[proc_macro]
 pub fn python(input: TokenStream1) -> TokenStream1 {
