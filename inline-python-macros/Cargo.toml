@@ -14,3 +14,4 @@ proc_macro = true
 proc-macro2 = { version = "0.4", features = ["span-locations"] }
 quote = "0.6"
 syn = { version = "0.15", features = ["parsing"] }
+pyo3 = "0.6"

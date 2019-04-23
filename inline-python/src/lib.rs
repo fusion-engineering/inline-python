@@ -71,13 +71,15 @@
 //!
 //! Everything else should work fine.
 
+use std::os::raw::c_char;
+
 pub use inline_python_macros::python;
 pub use pyo3;
 
 use pyo3::{
 	ffi,
 	types::{PyAny, PyDict},
-	AsPyPointer, PyErr, PyResult, Python,
+	AsPyPointer, PyErr, PyObject, PyResult, Python,
 };
 
 #[doc(hidden)]
@@ -86,8 +88,7 @@ pub use std::ffi::CStr;
 #[doc(hidden)]
 pub fn run_python_code<'p>(
 	py: Python<'p>,
-	code: &CStr,
-	filename: &CStr,
+	compiled_code: &[u8],
 	locals: Option<&PyDict>,
 ) -> PyResult<&'p PyAny> {
 	unsafe {
@@ -99,13 +100,26 @@ pub fn run_python_code<'p>(
 		let globals = ffi::PyModule_GetDict(mptr);
 		let locals = locals.map(AsPyPointer::as_ptr).unwrap_or(globals);
 
-		let cptr = ffi::Py_CompileString(code.as_ptr(), filename.as_ptr(), ffi::Py_file_input);
-		if cptr.is_null() {
-			return Err(PyErr::fetch(py));
-		}
+		let compiled_code = python_unmarshal_object_from_bytes(py, compiled_code)?;
 
-		let res_ptr = ffi::PyEval_EvalCode(cptr, globals, locals);
+		let res_ptr = ffi::PyEval_EvalCode(compiled_code.as_ptr(), globals, locals);
 
 		py.from_owned_ptr_or_err(res_ptr)
+	}
+}
+
+extern "C" {
+	fn PyMarshal_ReadObjectFromString(data: *const c_char, len: isize) -> *mut ffi::PyObject;
+}
+
+/// Use built-in python marshal support to read an object from bytes.
+fn python_unmarshal_object_from_bytes(py: Python, data: &[u8]) -> pyo3::PyResult<PyObject> {
+	unsafe {
+		let object = PyMarshal_ReadObjectFromString(data.as_ptr() as *const c_char, data.len() as isize);
+		if object.is_null() {
+			return Err(PyErr::fetch(py))
+		}
+
+		Ok(PyObject::from_owned_ptr(py, object))
 	}
 }
