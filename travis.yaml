@@ -1,0 +1,6 @@
+language: rust
+rust:
+  - nightly
+dist: xenial
+before_install:
+  - sudo apt-get install -y libpython3-dev
