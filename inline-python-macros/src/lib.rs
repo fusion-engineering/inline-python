@@ -8,25 +8,34 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use std::ptr::NonNull;
 use std::os::raw::c_char;
+use syn::{
+	parse_macro_input,
+	parse::{Parse, ParseStream},
+};
 
 use pyo3::{ffi, AsPyPointer, PyErr, PyObject, Python};
 
 mod embed_python;
 use embed_python::EmbedPython;
 
+mod meta;
+use self::meta::{Meta, NameValue};
+
 #[proc_macro]
 pub fn python(input: TokenStream1) -> TokenStream1 {
+	let mut filename = input.clone().into_iter().next().map_or_else(
+		|| String::from("<unknown>"),
+		|t| t.span().source_file().path().to_string_lossy().into_owned(),
+	);
+
+	let args = parse_macro_input!(input as Args);
+
 	let mut x = EmbedPython::new();
-	x.add(TokenStream::from(input.clone()));
+	x.add(args.code);
 
 	let EmbedPython {
 		mut python, variables, ..
 	} = x;
-
-	let mut filename = input.into_iter().next().map_or_else(
-		|| String::from("<unknown>"),
-		|t| t.span().source_file().path().to_string_lossy().into_owned(),
-	);
 
 	python.push('\0');
 	filename.push('\0');
@@ -45,16 +54,24 @@ pub fn python(input: TokenStream1) -> TokenStream1 {
 
 	let compiled = syn::LitByteStr::new(&compiled, proc_macro2::Span::call_site());
 
+	let make_context = match args.context {
+		Some(context) => quote! {
+			let _context : &::inline_python::Context = #context;
+		},
+		None => quote! {
+			let _context = &::inline_python::Context::new_with_gil(_python_lock.python()).expect("failed to create python context");
+		},
+	};
 
 	let q = quote! {
 		{
 			let _python_lock = ::inline_python::pyo3::Python::acquire_gil();
-			let _context = ::inline_python::Context::new_with_gil(_python_lock.python()).expect("failed to create python context");
+			#make_context
 			let mut _python_variables = ::inline_python::pyo3::types::PyDict::new(_python_lock.python());
 			#variables
 			let r = ::inline_python::run_python_code(
 				_python_lock.python(),
-				&_context,
+				_context,
 				#compiled,
 				Some(_python_variables)
 			);
@@ -69,6 +86,41 @@ pub fn python(input: TokenStream1) -> TokenStream1 {
 	};
 
 	q.into()
+}
+
+#[derive(Debug, Default)]
+struct Args {
+	context: Option<syn::Expr>,
+	code: TokenStream,
+}
+
+fn set_once(destination: &mut Option<syn::Expr>, attribute: NameValue) -> syn::Result<()> {
+	if destination.is_some() {
+		Err(syn::Error::new(attribute.name.span(), "duplicate attribute"))
+	} else {
+		destination.replace(attribute.value);
+		Ok(())
+	}
+}
+
+impl Parse for Args {
+	fn parse(input: ParseStream) -> syn::Result<Self> {
+		let mut context = None;
+
+		while let Some(meta) = Meta::maybe_parse(input)? {
+			for attribute in meta.args.into_iter() {
+				match attribute.name.to_string().as_str() {
+					"context" => set_once(&mut context, attribute)?,
+					_ => return Err(syn::Error::new(attribute.name.span(), "unknown attribute")),
+				}
+			}
+		}
+
+		Ok(Self {
+			context,
+			code: input.parse()?,
+		})
+	}
 }
 
 unsafe fn as_c_str<T: AsRef<[u8]> + ?Sized>(value: &T) -> *const c_char {
