@@ -55,10 +55,12 @@ pub fn python(input: TokenStream1) -> TokenStream1 {
 	let q = quote! {
 		{
 			let _python_lock = ::inline_python::pyo3::Python::acquire_gil();
+			let _context = ::inline_python::Context::new_with_gil(_python_lock.python()).expect("failed to create python context");
 			let mut _python_variables = ::inline_python::pyo3::types::PyDict::new(_python_lock.python());
 			#variables
 			let r = ::inline_python::run_python_code(
 				_python_lock.python(),
+				&_context,
 				#compiled,
 				Some(_python_variables)
 			);
