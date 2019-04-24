@@ -79,36 +79,106 @@ pub use pyo3;
 use pyo3::{
 	ffi,
 	types::{PyAny, PyDict},
-	AsPyPointer, PyErr, PyObject, PyResult, Python,
+	AsPyPointer,
+	FromPyObject,
+	IntoPyObject,
+	PyErr,
+	PyObject,
+	PyResult,
+	Python,
 };
 
 #[doc(hidden)]
 pub use std::ffi::CStr;
 
+/// An executaion context for Python code.
+///
+/// If you pass a manually created to the [`python`] macro, you can share it across invocations.
+/// This will keep all global variables and imports intact between macro invocations.
+///
+/// You may also use it to inspect global variables after the execution of the Python code.
+pub struct Context {
+	globals: PyObject,
+}
+
+impl Context {
+	/// Create a new context for running python code.
+	///
+	/// This function temporarily acquires the GIL.
+	/// If you already have the GIL, use [`new_with_gil`] instead.
+	///
+	/// This function panics if it fails to create the context.
+	/// See [`new_checked`] for a verion that returns a result.
+	pub fn new() -> Self {
+		let gil = Python::acquire_gil();
+		let py  = gil.python();
+		match Self::new_with_gil(py) {
+			Ok(x) => x,
+			Err(error) => {
+				error.print(py);
+				panic!("failed to create python context");
+			}
+		}
+	}
+
+	/// Create a new context for running python code.
+	///
+	/// This function temporarily acquires the GIL.
+	/// If you already have the GIL, use [`new_with_gil`] instead.
+	pub fn new_checked() -> PyResult<Self> {
+		let gil = Python::acquire_gil();
+		let py  = gil.python();
+		Self::new_with_gil(py)
+	}
+
+	/// Create a new context for runnin Python code.
+	///
+	/// You must acquire the GIL to call this function.
+	pub fn new_with_gil(py: Python) -> PyResult<Self> {
+		let main_mod = unsafe { ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _) };
+		if main_mod.is_null() {
+			return Err(PyErr::fetch(py));
+		};
+
+		let globals = PyDict::new(py);
+		if unsafe { ffi::PyDict_Merge(globals.as_ptr(), ffi::PyModule_GetDict(main_mod), 0) != 0 } {
+			return Err(PyErr::fetch(py));
+		}
+
+		Ok(Self { globals: globals.into_object(py) })
+	}
+
+	/// Get the globals as dictionary.
+	pub fn globals<'p>(&self, py: Python<'p>) -> &'p PyDict {
+		unsafe { py.from_borrowed_ptr(self.globals.as_ptr()) }
+	}
+
+	/// Retrieve a global variable from the context.
+	pub fn get_global<'p, T: FromPyObject<'p>>(self, py: Python<'p>, name: &str) -> PyResult<Option<T>> {
+		match self.globals(py).get_item(name) {
+			None => Ok(None),
+			Some(value) => FromPyObject::extract(value).map(Some),
+		}
+	}
+}
+
 #[doc(hidden)]
 pub fn run_python_code<'p>(
 	py: Python<'p>,
+	context: &Context,
 	compiled_code: &[u8],
-	locals: Option<&PyDict>,
+	rust_vars: Option<&PyDict>,
 ) -> PyResult<&'p PyAny> {
 	unsafe {
-		let main_mod = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
-		if main_mod.is_null() {
-			return Err(PyErr::fetch(py));
-		}
-
-		let globals = PyDict::new(py);
-		if ffi::PyDict_Merge(globals.as_ptr(), ffi::PyModule_GetDict(main_mod), 0) != 0 {
-			return Err(PyErr::fetch(py));
-		}
-
-		let rust_vars = locals.map(|x| x.as_ptr()).unwrap_or_else(|| py.None().as_ptr());
-		if ffi::PyDict_SetItemString(globals.as_ptr(), "RUST\0".as_ptr() as *const _, rust_vars) != 0 {
+		// Add the rust variable in a global dictionary named RUST.
+		// If no rust vars are given, make the RUST global an empty dictionary.
+		let rust_vars = rust_vars.unwrap_or_else(|| PyDict::new(py)).as_ptr();
+		if ffi::PyDict_SetItemString(context.globals.as_ptr(), "RUST\0".as_ptr() as *const _, rust_vars) != 0 {
 			return Err(PyErr::fetch(py))
 		}
 
 		let compiled_code = python_unmarshal_object_from_bytes(py, compiled_code)?;
-		let result = ffi::PyEval_EvalCode(compiled_code.as_ptr(), globals.as_ptr(), std::ptr::null_mut());
+		let result = ffi::PyEval_EvalCode(compiled_code.as_ptr(), context.globals.as_ptr(), std::ptr::null_mut());
 
 		py.from_owned_ptr_or_err(result)
 	}
