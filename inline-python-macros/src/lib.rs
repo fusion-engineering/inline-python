@@ -221,13 +221,14 @@ impl EmbedPython {
 						} else {
 							unreachable!()
 						};
-						let pyname = format!("_rust_{}", name);
 						let name_str = name.to_string();
-						self.python.push_str(&pyname);
+						self.python.push_str("RUST['");
+						self.python.push_str(&name_str);
+						self.python.push_str("']");
 						self.loc.column += name_str.chars().count() + 1;
-						if self.variable_names.insert(name_str) {
+						if self.variable_names.insert(name_str.clone()) {
 							self.variables.extend(quote! {
-								_python_variables.set_item(#pyname, #name)
+								_python_variables.set_item(#name_str, #name)
 									.expect("Unable to convert variable to Python");
 							});
 						}

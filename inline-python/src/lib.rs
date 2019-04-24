@@ -92,19 +92,25 @@ pub fn run_python_code<'p>(
 	locals: Option<&PyDict>,
 ) -> PyResult<&'p PyAny> {
 	unsafe {
-		let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
-		if mptr.is_null() {
+		let main_mod = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
+		if main_mod.is_null() {
 			return Err(PyErr::fetch(py));
 		}
 
-		let globals = ffi::PyModule_GetDict(mptr);
-		let locals = locals.map(AsPyPointer::as_ptr).unwrap_or(globals);
+		let globals = PyDict::new(py);
+		if ffi::PyDict_Merge(globals.as_ptr(), ffi::PyModule_GetDict(main_mod), 0) != 0 {
+			return Err(PyErr::fetch(py));
+		}
+
+		let rust_vars = locals.map(|x| x.as_ptr()).unwrap_or_else(|| py.None().as_ptr());
+		if ffi::PyDict_SetItemString(globals.as_ptr(), "RUST\0".as_ptr() as *const _, rust_vars) != 0 {
+			return Err(PyErr::fetch(py))
+		}
 
 		let compiled_code = python_unmarshal_object_from_bytes(py, compiled_code)?;
+		let result = ffi::PyEval_EvalCode(compiled_code.as_ptr(), globals.as_ptr(), std::ptr::null_mut());
 
-		let res_ptr = ffi::PyEval_EvalCode(compiled_code.as_ptr(), globals, locals);
-
-		py.from_owned_ptr_or_err(res_ptr)
+		py.from_owned_ptr_or_err(result)
 	}
 }
 
