@@ -85,8 +85,6 @@ use pyo3::{
 #[doc(hidden)]
 pub use std::ffi::CStr;
 
-use std::ptr::NonNull;
-
 #[doc(hidden)]
 pub fn run_python_code<'p>(
 	py: Python<'p>,
@@ -94,13 +92,13 @@ pub fn run_python_code<'p>(
 	locals: Option<&PyDict>,
 ) -> PyResult<&'p PyAny> {
 	unsafe {
-		let main_mod = match NonNull::new(ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _)) {
-			None => return Err(PyErr::fetch(py)),
-			Some(x) => PyObject::from_owned_ptr(py, x.as_ptr()),
-		};
+		let main_mod = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
+		if main_mod.is_null() {
+			return Err(PyErr::fetch(py));
+		}
 
 		let globals = PyDict::new(py);
-		if ffi::PyDict_Merge(globals.as_ptr(), ffi::PyModule_GetDict(main_mod.as_ptr()), 0) != 0 {
+		if ffi::PyDict_Merge(globals.as_ptr(), ffi::PyModule_GetDict(main_mod), 0) != 0 {
 			return Err(PyErr::fetch(py));
 		}
 
