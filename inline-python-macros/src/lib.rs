@@ -158,7 +158,7 @@ unsafe fn py_unicode_string(object: *mut ffi::PyObject) -> String {
 	String::from(data)
 }
 
-/// Convert a python object to a string using the the python `str()` function.
+/// Convert a python object to a string using the python `str()` function.
 fn python_str(object: &PyObject) -> String {
 	unsafe {
 		let string = ffi::PyObject_Str(object.as_ptr());
