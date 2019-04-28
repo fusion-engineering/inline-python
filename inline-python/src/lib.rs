@@ -79,13 +79,7 @@ pub use pyo3;
 use pyo3::{
 	ffi,
 	types::{PyAny, PyDict},
-	AsPyPointer,
-	FromPyObject,
-	IntoPyObject,
-	PyErr,
-	PyObject,
-	PyResult,
-	Python,
+	AsPyPointer, FromPyObject, IntoPyObject, PyErr, PyObject, PyResult, Python,
 };
 
 #[doc(hidden)]
@@ -111,7 +105,7 @@ impl Context {
 	/// See [`new_checked`] for a version that returns a result.
 	pub fn new() -> Self {
 		let gil = Python::acquire_gil();
-		let py  = gil.python();
+		let py = gil.python();
 		match Self::new_with_gil(py) {
 			Ok(x) => x,
 			Err(error) => {
@@ -127,7 +121,7 @@ impl Context {
 	/// If you already have the GIL, use [`new_with_gil`] instead.
 	pub fn new_checked() -> PyResult<Self> {
 		let gil = Python::acquire_gil();
-		let py  = gil.python();
+		let py = gil.python();
 		Self::new_with_gil(py)
 	}
 
@@ -145,7 +139,9 @@ impl Context {
 			return Err(PyErr::fetch(py));
 		}
 
-		Ok(Self { globals: globals.into_object(py) })
+		Ok(Self {
+			globals: globals.into_object(py),
+		})
 	}
 
 	/// Get the globals as dictionary.
@@ -163,18 +159,13 @@ impl Context {
 }
 
 #[doc(hidden)]
-pub fn run_python_code<'p>(
-	py: Python<'p>,
-	context: &Context,
-	compiled_code: &[u8],
-	rust_vars: Option<&PyDict>,
-) -> PyResult<&'p PyAny> {
+pub fn run_python_code<'p>(py: Python<'p>, context: &Context, compiled_code: &[u8], rust_vars: Option<&PyDict>) -> PyResult<&'p PyAny> {
 	unsafe {
 		// Add the rust variable in a global dictionary named RUST.
 		// If no rust vars are given, make the RUST global an empty dictionary.
 		let rust_vars = rust_vars.unwrap_or_else(|| PyDict::new(py)).as_ptr();
 		if ffi::PyDict_SetItemString(context.globals.as_ptr(), "RUST\0".as_ptr() as *const _, rust_vars) != 0 {
-			return Err(PyErr::fetch(py))
+			return Err(PyErr::fetch(py));
 		}
 
 		let compiled_code = python_unmarshal_object_from_bytes(py, compiled_code)?;
@@ -193,7 +184,7 @@ fn python_unmarshal_object_from_bytes(py: Python, data: &[u8]) -> pyo3::PyResult
 	unsafe {
 		let object = PyMarshal_ReadObjectFromString(data.as_ptr() as *const c_char, data.len() as isize);
 		if object.is_null() {
-			return Err(PyErr::fetch(py))
+			return Err(PyErr::fetch(py));
 		}
 
 		Ok(PyObject::from_owned_ptr(py, object))

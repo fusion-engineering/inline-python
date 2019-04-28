@@ -6,11 +6,11 @@ extern crate proc_macro;
 use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::TokenStream;
 use quote::quote;
-use std::ptr::NonNull;
 use std::os::raw::c_char;
+use std::ptr::NonNull;
 use syn::{
-	parse_macro_input,
 	parse::{Parse, ParseStream},
+	parse_macro_input,
 };
 
 use pyo3::{ffi, AsPyPointer, PyErr, PyObject, Python};
@@ -33,16 +33,14 @@ pub fn python(input: TokenStream1) -> TokenStream1 {
 	let mut x = EmbedPython::new();
 	x.add(args.code);
 
-	let EmbedPython {
-		mut python, variables, ..
-	} = x;
+	let EmbedPython { mut python, variables, .. } = x;
 
 	python.push('\0');
 	filename.push('\0');
 
 	let compiled = unsafe {
 		let gil = Python::acquire_gil();
-		let py  = gil.python();
+		let py = gil.python();
 
 		let compiled_code = match NonNull::new(ffi::Py_CompileString(as_c_str(&python), as_c_str(&filename), ffi::Py_file_input)) {
 			None => panic!("{}", compile_error_msg(py)),
@@ -128,7 +126,7 @@ unsafe fn as_c_str<T: AsRef<[u8]> + ?Sized>(value: &T) -> *const c_char {
 }
 
 extern "C" {
-	fn PyMarshal_WriteObjectToString(object: *mut ffi::PyObject, version: std::os::raw::c_int) ->  *mut ffi::PyObject;
+	fn PyMarshal_WriteObjectToString(object: *mut ffi::PyObject, version: std::os::raw::c_int) -> *mut ffi::PyObject;
 }
 
 /// Use built-in python marshal support to turn an object into bytes.
@@ -136,11 +134,11 @@ fn python_marshal_object_to_bytes(py: Python, object: &PyObject) -> pyo3::PyResu
 	unsafe {
 		let bytes = PyMarshal_WriteObjectToString(object.as_ptr(), 2);
 		if bytes.is_null() {
-			return Err(PyErr::fetch(py))
+			return Err(PyErr::fetch(py));
 		}
 
 		let mut buffer = std::ptr::null_mut();
-		let mut size  = 0isize;
+		let mut size = 0isize;
 		ffi::PyBytes_AsStringAndSize(bytes, &mut buffer, &mut size);
 		let result = Vec::from(std::slice::from_raw_parts(buffer as *const u8, size as usize));
 
@@ -171,9 +169,9 @@ fn python_str(object: &PyObject) -> String {
 /// Get the object of a PyErrValue, if any.
 fn err_value_object(py: Python, value: pyo3::PyErrValue) -> Option<PyObject> {
 	match value {
-		pyo3::PyErrValue::None        => None,
-		pyo3::PyErrValue::Value(x)    => Some(x),
-		pyo3::PyErrValue::ToArgs(x)   => Some(x.arguments(py)),
+		pyo3::PyErrValue::None => None,
+		pyo3::PyErrValue::Value(x) => Some(x),
+		pyo3::PyErrValue::ToArgs(x) => Some(x.arguments(py)),
 		pyo3::PyErrValue::ToObject(x) => Some(x.to_object(py)),
 	}
 }
@@ -189,9 +187,13 @@ fn compile_error_msg(py: Python) -> String {
 	let error = PyErr::fetch(py);
 
 	if error.matches(py, pyo3::exceptions::SyntaxError::type_object()) {
-		let PyErr { ptype: kind, pvalue: value, .. } = error;
+		let PyErr {
+			ptype: kind,
+			pvalue: value,
+			..
+		} = error;
 		let value = match err_value_object(py, value) {
-			None    => return kind.as_ref(py).name().into_owned(),
+			None => return kind.as_ref(py).name().into_owned(),
 			Some(x) => x,
 		};
 
@@ -201,9 +203,13 @@ fn compile_error_msg(py: Python) -> String {
 		};
 	}
 
-	let PyErr { ptype: kind, pvalue: value, .. } = error;
+	let PyErr {
+		ptype: kind,
+		pvalue: value,
+		..
+	} = error;
 	match err_value_object(py, value) {
-		None    => kind.as_ref(py).name().into_owned(),
+		None => kind.as_ref(py).name().into_owned(),
 		Some(x) => python_str(&x),
 	}
 }

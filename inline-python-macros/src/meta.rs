@@ -2,7 +2,7 @@ use syn::{
 	bracketed,
 	parse::{Parse, ParseStream},
 	punctuated::Punctuated,
-	token
+	token,
 };
 
 pub struct NameValue {
