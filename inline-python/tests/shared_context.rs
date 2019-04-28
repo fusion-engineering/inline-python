@@ -1,15 +1,15 @@
 #![feature(proc_macro_hygiene)]
 
-use inline_python::{python, pyo3};
+use inline_python::{pyo3, python};
 
 #[test]
 fn continue_context() {
 	let context = inline_python::Context::new();
-	python!{
+	python! {
 		#![context = &context]
 		foo = 5
 	}
-	python!{
+	python! {
 		#![context = &context]
 		assert foo == 5
 	}
@@ -18,13 +18,13 @@ fn continue_context() {
 #[test]
 fn extract_global() {
 	let context = inline_python::Context::new();
-	python!{
+	python! {
 		#![context = &context]
 		foo = 5
 	}
 
 	let gil = pyo3::Python::acquire_gil();
-	let py  = gil.python();
+	let py = gil.python();
 
 	assert_eq!(context.get_global(py, "foo").unwrap(), Some(5));
 }
