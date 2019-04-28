@@ -1,4 +1,4 @@
-use proc_macro2::{Delimiter, LineColumn, Spacing, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, LineColumn, Spacing, Span, TokenStream, TokenTree};
 use quote::quote;
 use std::collections::BTreeSet;
 use std::fmt::Write;
@@ -22,7 +22,7 @@ impl EmbedPython {
 		}
 	}
 
-	fn add_whitespace(&mut self, loc: LineColumn) {
+	fn add_whitespace(&mut self, span: Span, loc: LineColumn) -> syn::Result<()> {
 		if loc.line > self.loc.line {
 			while loc.line > self.loc.line {
 				self.python.push('\n');
@@ -30,7 +30,7 @@ impl EmbedPython {
 			}
 			let first_indent = *self.first_indent.get_or_insert(loc.column);
 			let indent = loc.column.checked_sub(first_indent);
-			let indent = indent.unwrap_or_else(|| panic!("Invalid indentation on line {}", loc.line));
+			let indent = indent.ok_or_else(|| syn::Error::new(span, format!("Invalid indentation on line {}", loc.line)))?;
 			for _ in 0..indent {
 				self.python.push(' ');
 			}
@@ -41,13 +41,16 @@ impl EmbedPython {
 				self.loc.column += 1;
 			}
 		}
+
+		Ok(())
 	}
 
-	pub fn add(&mut self, input: TokenStream) {
+	pub fn add(&mut self, input: TokenStream) -> syn::Result<()> {
 		let mut tokens = input.into_iter();
 
 		while let Some(token) = tokens.next() {
-			self.add_whitespace(token.span().start());
+			let span = token.span();
+			self.add_whitespace(span, token.span().start())?;
 
 			match &token {
 				TokenTree::Group(x) => {
@@ -59,10 +62,10 @@ impl EmbedPython {
 					};
 					self.python.push_str(start);
 					self.loc.column += start.len();
-					self.add(x.stream());
+					self.add(x.stream())?;
 					let mut end_loc = token.span().end();
 					end_loc.column = end_loc.column.saturating_sub(end.len());
-					self.add_whitespace(end_loc);
+					self.add_whitespace(span, end_loc)?;
 					self.python.push_str(end);
 					self.loc.column += end.len();
 				}
@@ -116,5 +119,7 @@ impl EmbedPython {
 				}
 			}
 		}
+
+		Ok(())
 	}
 }

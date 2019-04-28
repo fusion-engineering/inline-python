@@ -4,14 +4,11 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream as TokenStream1;
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use std::os::raw::c_char;
 use std::ptr::NonNull;
-use syn::{
-	parse::{Parse, ParseStream},
-	parse_macro_input,
-};
+use syn::parse::{Parse, ParseStream};
 
 use pyo3::{ffi, AsPyPointer, PyErr, PyObject, Python};
 
@@ -21,17 +18,16 @@ use embed_python::EmbedPython;
 mod meta;
 use self::meta::{Meta, NameValue};
 
-#[proc_macro]
-pub fn python(input: TokenStream1) -> TokenStream1 {
+fn python_impl(input: TokenStream) -> syn::Result<TokenStream> {
 	let mut filename = input.clone().into_iter().next().map_or_else(
 		|| String::from("<unknown>"),
-		|t| t.span().source_file().path().to_string_lossy().into_owned(),
+		|t| t.span().unwrap().source_file().path().to_string_lossy().into_owned(),
 	);
 
-	let args = parse_macro_input!(input as Args);
+	let args = syn::parse2::<Args>(input)?;
 
 	let mut x = EmbedPython::new();
-	x.add(args.code);
+	x.add(args.code)?;
 
 	let EmbedPython { mut python, variables, .. } = x;
 
@@ -43,11 +39,13 @@ pub fn python(input: TokenStream1) -> TokenStream1 {
 		let py = gil.python();
 
 		let compiled_code = match NonNull::new(ffi::Py_CompileString(as_c_str(&python), as_c_str(&filename), ffi::Py_file_input)) {
-			None => panic!("{}", compile_error_msg(py)),
+			None => return Err(syn::Error::new(Span::call_site(), compile_error_msg(py))),
 			Some(x) => PyObject::from_owned_ptr(py, x.as_ptr()),
 		};
 
-		python_marshal_object_to_bytes(py, &compiled_code).expect("marshalling compiled python code failed")
+		python_marshal_object_to_bytes(py, &compiled_code)
+			// TODO: Use error from Pyo3.
+			.map_err(|_e| syn::Error::new(Span::call_site(), "failed to generate python byte-code: {}"))?
 	};
 
 	let compiled = syn::LitByteStr::new(&compiled, proc_macro2::Span::call_site());
@@ -61,7 +59,7 @@ pub fn python(input: TokenStream1) -> TokenStream1 {
 		},
 	};
 
-	let q = quote! {
+	Ok(quote! {
 		{
 			let _python_lock = ::inline_python::pyo3::Python::acquire_gil();
 			#make_context
@@ -81,10 +79,17 @@ pub fn python(input: TokenStream1) -> TokenStream1 {
 				}
 			}
 		}
-	};
-
-	q.into()
+	})
 }
+
+#[proc_macro]
+pub fn python(input: TokenStream1) -> TokenStream1 {
+	TokenStream1::from(match python_impl(TokenStream::from(input)) {
+		Ok(tokens) => tokens,
+		Err(error) => error.to_compile_error(),
+	})
+}
+
 
 #[derive(Debug, Default)]
 struct Args {
