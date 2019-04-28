@@ -19,7 +19,7 @@
 //!
 //! # How to use
 //!
-//! Use the `python!{..}` macro to write Python code direcly in your Rust code.
+//! Use the `python!{..}` macro to write Python code directly in your Rust code.
 //! You'll need to add `#![feature(proc_macro_hygiene)]`, and use a nightly
 //! version of the compiler that supports this feature.
 //!
@@ -91,9 +91,9 @@ use pyo3::{
 #[doc(hidden)]
 pub use std::ffi::CStr;
 
-/// An executaion context for Python code.
+/// An execution context for Python code.
 ///
-/// If you pass a manually created to the [`python`] macro, you can share it across invocations.
+/// If you pass a manually created context to the [`python`] macro, you can share it across invocations.
 /// This will keep all global variables and imports intact between macro invocations.
 ///
 /// You may also use it to inspect global variables after the execution of the Python code.
@@ -108,7 +108,7 @@ impl Context {
 	/// If you already have the GIL, use [`new_with_gil`] instead.
 	///
 	/// This function panics if it fails to create the context.
-	/// See [`new_checked`] for a verion that returns a result.
+	/// See [`new_checked`] for a version that returns a result.
 	pub fn new() -> Self {
 		let gil = Python::acquire_gil();
 		let py  = gil.python();
@@ -131,7 +131,7 @@ impl Context {
 		Self::new_with_gil(py)
 	}
 
-	/// Create a new context for runnin Python code.
+	/// Create a new context for running Python code.
 	///
 	/// You must acquire the GIL to call this function.
 	pub fn new_with_gil(py: Python) -> PyResult<Self> {
