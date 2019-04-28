@@ -19,6 +19,8 @@ mod meta;
 use self::meta::{Meta, NameValue};
 
 fn python_impl(input: TokenStream) -> syn::Result<TokenStream> {
+	let tokens = input.clone();
+
 	let mut filename = input.clone().into_iter().next().map_or_else(
 		|| String::from("<unknown>"),
 		|t| t.span().unwrap().source_file().path().to_string_lossy().into_owned(),
@@ -39,7 +41,7 @@ fn python_impl(input: TokenStream) -> syn::Result<TokenStream> {
 		let py = gil.python();
 
 		let compiled_code = match NonNull::new(ffi::Py_CompileString(as_c_str(&python), as_c_str(&filename), ffi::Py_file_input)) {
-			None => return Err(syn::Error::new(Span::call_site(), compile_error_msg(py))),
+			None => return Err(compile_error_msg(py, tokens)),
 			Some(x) => PyObject::from_owned_ptr(py, x.as_ptr()),
 		};
 
@@ -89,7 +91,6 @@ pub fn python(input: TokenStream1) -> TokenStream1 {
 		Err(error) => error.to_compile_error(),
 	})
 }
-
 
 #[derive(Debug, Default)]
 struct Args {
@@ -181,12 +182,12 @@ fn err_value_object(py: Python, value: pyo3::PyErrValue) -> Option<PyObject> {
 	}
 }
 
-fn compile_error_msg(py: Python) -> String {
+fn compile_error_msg(py: Python, tokens: TokenStream) -> syn::Error {
 	use pyo3::type_object::PyTypeObject;
 	use pyo3::AsPyRef;
 
 	if !PyErr::occurred(py) {
-		return String::from("failed to compile python code, but no detailed error is available");
+		return syn::Error::new(Span::call_site(), "failed to compile python code, but no detailed error is available");
 	}
 
 	let error = PyErr::fetch(py);
@@ -198,13 +199,18 @@ fn compile_error_msg(py: Python) -> String {
 			..
 		} = error;
 		let value = match err_value_object(py, value) {
-			None => return kind.as_ref(py).name().into_owned(),
+			None => return syn::Error::new(Span::call_site(), kind.as_ref(py).name().into_owned()),
 			Some(x) => x,
 		};
 
 		return match value.extract::<(String, (String, i32, i32, String))>(py) {
-			Ok((msg, (file, line, col, _token))) => format!("{} at {}:{}:{}", msg, file, line, col),
-			Err(_) => python_str(&value),
+			Ok((msg, (file, line, col, _token))) => {
+				match span_for_line(tokens, line as usize, col as usize) {
+					Some(span) => syn::Error::new(span, msg),
+					None => syn::Error::new(Span::call_site(), format!("{} at {}:{}:{}", msg, file, line, col)),
+				}
+			}
+			Err(_) => syn::Error::new(Span::call_site(), python_str(&value)),
 		};
 	}
 
@@ -213,8 +219,30 @@ fn compile_error_msg(py: Python) -> String {
 		pvalue: value,
 		..
 	} = error;
-	match err_value_object(py, value) {
+
+	let message = match err_value_object(py, value) {
 		None => kind.as_ref(py).name().into_owned(),
 		Some(x) => python_str(&x),
+	};
+
+	syn::Error::new(Span::call_site(), message)
+}
+
+/// Get a span for a specific line of input from a TokenStream.
+fn span_for_line(input: TokenStream, line: usize, _col: usize) -> Option<Span> {
+	let mut spans = input
+		.into_iter()
+		.map(|x| x.span().unwrap())
+		.skip_while(|span| span.start().line < line)
+		.take_while(|span| span.start().line == line);
+
+	let mut result = spans.next()?;
+	for span in spans {
+		result = match result.join(span) {
+			None => return Some(Span::from(result)),
+			Some(span) => span,
+		}
 	}
+
+	Some(Span::from(result))
 }
