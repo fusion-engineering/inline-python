@@ -29,10 +29,8 @@
 //! `var` needs to implement [`pyo3::ToPyObject`].
 //!
 //! ## Re-using a Python context
-//! It is possible to create a [`Context`] object ahead of time,
-//! to be used for running the python code.
-//! That way, the context can be shared by multiple invocations of the macro.
-//! Doing so will preserve global variables across macro calls:
+//! It is possible to create a [`Context`] object ahead of time and use it for running the Python code.
+//! The context can be re-used for multiple invocations to share global variables across macro calls.
 //!
 //! ```
 //! # #![feature(proc_macro_hygiene)]

@@ -28,13 +28,11 @@ version of the compiler that supports this feature.
 ### Using Rust variables
 
 To reference Rust variables, use `'var`, as shown in the example above.
-`var` needs to implement [`pyo3::ToPyObject`].
+`var` needs to implement `pyo3::ToPyObject`.
 
 ### Re-using a Python context
-It is possible to create a [`Context`] object ahead of time,
-to be used for running the python code.
-That way, the context can be shared by multiple invocations of the macro.
-Doing so will preserve global variables across macro calls:
+It is possible to create a `Context` object ahead of time and use it for running the Python code.
+The context can be re-used for multiple invocations to share global variables across macro calls.
 
 ```rust
 let context = inline_python::Context::new();
@@ -50,7 +48,7 @@ python! {
 
 ### Getting information back
 
-A [`Context`] object can also be used to pass information back to Rust.
+A `Context` object can also be used to pass information back to Rust.
 You can retrieve global Python variables from the context.
 Note that you need to acquire the GIL in order to access those globals:
 
