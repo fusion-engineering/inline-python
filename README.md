@@ -21,20 +21,52 @@ fn main() {
 
 ## How to use
 
-Use the `python!{..}` macro to write Python code direcly in your Rust code.
+Use the `python!{..}` macro to write Python code directly in your Rust code.
 You'll need to add `#![feature(proc_macro_hygiene)]`, and use a nightly
 version of the compiler that supports this feature.
 
 ### Using Rust variables
 
 To reference Rust variables, use `'var`, as shown in the example above.
-`var` needs to implement `pyo3::ToPyObject`.
+`var` needs to implement [`pyo3::ToPyObject`].
+
+### Re-using a Python context
+It is possible to create a [`Context`] object ahead of time,
+to be used for running the python code.
+That way, the context can be shared by multiple invocations of the macro.
+Doing so will preserve global variables across macro calls:
+
+```rust
+let context = inline_python::Context::new();
+python! {
+  #![context = &context]
+  foo = 5
+}
+python! {
+  #![context = &context]
+  assert foo == 5
+}
+```
 
 ### Getting information back
 
-Right now, this crate provides no easy way to get information from the
-Python code back into Rust. Support for that will be added in a later
-version of this crate.
+A [`Context`] object can also be used to pass information back to Rust.
+You can retrieve global Python variables from the context.
+Note that you need to acquire the GIL in order to access those globals:
+
+```rust
+use inline_python::{pyo3, python};
+let context = inline_python::Context::new();
+python! {
+  #![context = &context]
+  foo = 5
+}
+
+let gil = pyo3::Python::acquire_gil();
+let py  = gil.python();
+let foo: Option<i32> = context.get_global(py, "foo").unwrap();
+assert_eq!(foo, Some(5));
+```
 
 ### Syntax issues
 

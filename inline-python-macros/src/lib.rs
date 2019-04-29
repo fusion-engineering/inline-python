@@ -98,6 +98,9 @@ fn python_impl(input: TokenStream) -> syn::Result<TokenStream> {
 	})
 }
 
+/// Execute inline python code.
+///
+/// See the module documentation for [inline-python](https://docs.rs/inline-python) for more usage information.
 #[proc_macro]
 pub fn python(input: TokenStream1) -> TokenStream1 {
 	TokenStream1::from(match python_impl(TokenStream::from(input)) {

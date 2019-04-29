@@ -28,11 +28,46 @@
 //! To reference Rust variables, use `'var`, as shown in the example above.
 //! `var` needs to implement [`pyo3::ToPyObject`].
 //!
+//! ## Re-using a Python context
+//! It is possible to create a [`Context`] object ahead of time,
+//! to be used for running the python code.
+//! That way, the context can be shared by multiple invocations of the macro.
+//! Doing so will preserve global variables across macro calls:
+//!
+//! ```
+//! # #![feature(proc_macro_hygiene)]
+//! # use inline_python::python;
+//! let context = inline_python::Context::new();
+//! python! {
+//!   #![context = &context]
+//!   foo = 5
+//! }
+//! python! {
+//!   #![context = &context]
+//!   assert foo == 5
+//! }
+//! ```
+//!
 //! ## Getting information back
 //!
-//! Right now, this crate provides no easy way to get information from the
-//! Python code back into Rust. Support for that will be added in a later
-//! version of this crate.
+//! A [`Context`] object can also be used to pass information back to Rust.
+//! You can retrieve global Python variables from the context.
+//! Note that you need to acquire the GIL in order to access those globals:
+//!
+//! ```
+//! # #![feature(proc_macro_hygiene)]
+//! use inline_python::{pyo3, python};
+//! let context = inline_python::Context::new();
+//! python! {
+//!   #![context = &context]
+//!   foo = 5
+//! }
+//!
+//! let gil = pyo3::Python::acquire_gil();
+//! let py  = gil.python();
+//! let foo: Option<i32> = context.get_global(py, "foo").unwrap();
+//! assert_eq!(foo, Some(5));
+//! ```
 //!
 //! ## Syntax issues
 //!
@@ -87,7 +122,7 @@ pub use std::ffi::CStr;
 
 /// An execution context for Python code.
 ///
-/// If you pass a manually created context to the [`python`] macro, you can share it across invocations.
+/// If you pass a manually created context to the `python!{}` macro, you can share it across invocations.
 /// This will keep all global variables and imports intact between macro invocations.
 ///
 /// You may also use it to inspect global variables after the execution of the Python code.
@@ -99,10 +134,10 @@ impl Context {
 	/// Create a new context for running python code.
 	///
 	/// This function temporarily acquires the GIL.
-	/// If you already have the GIL, use [`new_with_gil`] instead.
+	/// If you already have the GIL, use [`Context::new_with_gil`] instead.
 	///
 	/// This function panics if it fails to create the context.
-	/// See [`new_checked`] for a version that returns a result.
+	/// See [`Context::new_checked`] for a version that returns a result.
 	pub fn new() -> Self {
 		let gil = Python::acquire_gil();
 		let py = gil.python();
@@ -118,7 +153,7 @@ impl Context {
 	/// Create a new context for running python code.
 	///
 	/// This function temporarily acquires the GIL.
-	/// If you already have the GIL, use [`new_with_gil`] instead.
+	/// If you already have the GIL, use [`Context::new_with_gil`] instead.
 	pub fn new_checked() -> PyResult<Self> {
 		let gil = Python::acquire_gil();
 		let py = gil.python();
