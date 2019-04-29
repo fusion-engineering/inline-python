@@ -182,12 +182,16 @@ fn err_value_object(py: Python, value: pyo3::PyErrValue) -> Option<PyObject> {
 	}
 }
 
+/// Format a nice error message for a python compilation error.
 fn compile_error_msg(py: Python, tokens: TokenStream) -> syn::Error {
 	use pyo3::type_object::PyTypeObject;
 	use pyo3::AsPyRef;
 
 	if !PyErr::occurred(py) {
-		return syn::Error::new(Span::call_site(), "failed to compile python code, but no detailed error is available");
+		return syn::Error::new(
+			Span::call_site(),
+			"failed to compile python code, but no detailed error is available",
+		);
 	}
 
 	let error = PyErr::fetch(py);
@@ -198,19 +202,18 @@ fn compile_error_msg(py: Python, tokens: TokenStream) -> syn::Error {
 			pvalue: value,
 			..
 		} = error;
+
 		let value = match err_value_object(py, value) {
-			None => return syn::Error::new(Span::call_site(), kind.as_ref(py).name().into_owned()),
+			None => return syn::Error::new(Span::call_site(), format!("python: {}", kind.as_ref(py).name())),
 			Some(x) => x,
 		};
 
 		return match value.extract::<(String, (String, i32, i32, String))>(py) {
-			Ok((msg, (file, line, col, _token))) => {
-				match span_for_line(tokens, line as usize, col as usize) {
-					Some(span) => syn::Error::new(span, msg),
-					None => syn::Error::new(Span::call_site(), format!("{} at {}:{}:{}", msg, file, line, col)),
-				}
-			}
-			Err(_) => syn::Error::new(Span::call_site(), python_str(&value)),
+			Ok((msg, (file, line, col, _token))) => match span_for_line(tokens, line as usize, col as usize) {
+				Some(span) => syn::Error::new(span, msg),
+				None => syn::Error::new(Span::call_site(), format!("python: {} at {}:{}:{}", msg, file, line, col)),
+			},
+			Err(_) => syn::Error::new(Span::call_site(), format!("python: {}", python_str(&value))),
 		};
 	}
 
@@ -225,7 +228,7 @@ fn compile_error_msg(py: Python, tokens: TokenStream) -> syn::Error {
 		Some(x) => python_str(&x),
 	};
 
-	syn::Error::new(Span::call_site(), message)
+	syn::Error::new(Span::call_site(), format!("python: {}", message))
 }
 
 /// Get a span for a specific line of input from a TokenStream.
