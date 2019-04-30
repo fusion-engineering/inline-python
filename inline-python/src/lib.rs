@@ -35,37 +35,22 @@
 //! ```
 //! # #![feature(proc_macro_hygiene)]
 //! # use inline_python::python;
-//! let context = inline_python::Context::new();
+//! let c = inline_python::Context::new();
 //! python! {
-//!   #![context = &context]
+//!   #![context = &c]
 //!   foo = 5
 //! }
 //! python! {
-//!   #![context = &context]
+//!   #![context = &c]
 //!   assert foo == 5
 //! }
 //! ```
 //!
 //! ## Getting information back
 //!
-//! A [`Context`] object can also be used to pass information back to Rust.
-//! You can retrieve global Python variables from the context.
-//! Note that you need to acquire the GIL in order to access those globals:
-//!
-//! ```
-//! # #![feature(proc_macro_hygiene)]
-//! use inline_python::{pyo3, python};
-//! let context = inline_python::Context::new();
-//! python! {
-//!   #![context = &context]
-//!   foo = 5
-//! }
-//!
-//! let gil = pyo3::Python::acquire_gil();
-//! let py  = gil.python();
-//! let foo: Option<i32> = context.get_global(py, "foo").unwrap();
-//! assert_eq!(foo, Some(5));
-//! ```
+//! A [`Context`] object could also be used to pass information back to Rust,
+//! as you can retrieve the global Python variables from the context through
+//! [`Context::get_global`].
 //!
 //! ## Syntax issues
 //!
@@ -123,7 +108,37 @@ pub use std::ffi::CStr;
 /// If you pass a manually created context to the `python!{}` macro, you can share it across invocations.
 /// This will keep all global variables and imports intact between macro invocations.
 ///
+/// ```
+/// # #![feature(proc_macro_hygiene)]
+/// # use inline_python::python;
+/// let c = inline_python::Context::new();
+/// python! {
+///   #![context = &c]
+///   foo = 5
+/// }
+/// python! {
+///   #![context = &c]
+///   assert foo == 5
+/// }
+/// ```
+///
 /// You may also use it to inspect global variables after the execution of the Python code.
+/// Note that you need to acquire the GIL in order to access those globals:
+///
+/// ```
+/// # #![feature(proc_macro_hygiene)]
+/// use inline_python::{pyo3, python};
+/// let context = inline_python::Context::new();
+/// python! {
+///   #![context = &context]
+///   foo = 5
+/// }
+///
+/// let gil = pyo3::Python::acquire_gil();
+/// let py  = gil.python();
+/// let foo: Option<i32> = context.get_global(py, "foo").unwrap();
+/// assert_eq!(foo, Some(5));
+/// ```
 pub struct Context {
 	globals: PyObject,
 }

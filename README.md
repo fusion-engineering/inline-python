@@ -35,36 +35,22 @@ It is possible to create a `Context` object ahead of time and use it for running
 The context can be re-used for multiple invocations to share global variables across macro calls.
 
 ```rust
-let context = inline_python::Context::new();
+let c = inline_python::Context::new();
 python! {
-  #![context = &context]
+  #![context = &c]
   foo = 5
 }
 python! {
-  #![context = &context]
+  #![context = &c]
   assert foo == 5
 }
 ```
 
 ### Getting information back
 
-A `Context` object can also be used to pass information back to Rust.
-You can retrieve global Python variables from the context.
-Note that you need to acquire the GIL in order to access those globals:
-
-```rust
-use inline_python::{pyo3, python};
-let context = inline_python::Context::new();
-python! {
-  #![context = &context]
-  foo = 5
-}
-
-let gil = pyo3::Python::acquire_gil();
-let py  = gil.python();
-let foo: Option<i32> = context.get_global(py, "foo").unwrap();
-assert_eq!(foo, Some(5));
-```
+A `Context` object could also be used to pass information back to Rust,
+as you can retrieve the global Python variables from the context through
+`Context::get_global`.
 
 ### Syntax issues
 
