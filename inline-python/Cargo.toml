@@ -1,7 +1,10 @@
 [package]
 name = "inline-python"
 version = "0.2.0"
-authors = ["Mara Bos <m-ou.se@m-ou.se>"]
+authors = [
+	"Mara Bos <m-ou.se@m-ou.se>",
+	"Maarten de Vries <maarten@de-vri.es>",
+]
 description = "Inline Python code directly in your Rust code"
 license = "BSD-2-Clause"
 edition = "2018"
