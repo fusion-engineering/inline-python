@@ -13,4 +13,4 @@ keywords = ["python", "inline", "embed", "macro"]
 
 [dependencies]
 inline-python-macros = { version = "=0.3.0", path = "../inline-python-macros" }
-pyo3 = "0.6"
+pyo3 = ">=0.6, <0.8"
