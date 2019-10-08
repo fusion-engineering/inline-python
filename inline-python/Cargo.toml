@@ -8,7 +8,7 @@ authors = [
 description = "Inline Python code directly in your Rust code"
 license = "BSD-2-Clause"
 edition = "2018"
-repository = "https://github.com/dronesforwork/inline-python"
+repository = "https://github.com/fusion-engineering/inline-python"
 keywords = ["python", "inline", "embed", "macro"]
 
 [dependencies]
