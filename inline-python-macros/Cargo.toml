@@ -1,6 +1,6 @@
 [package]
 name = "inline-python-macros"
-version = "0.3.1"
+version = "0.3.2"
 authors = [
 	"Mara Bos <m-ou.se@m-ou.se>",
 	"Maarten de Vries <maarten@de-vri.es>",
@@ -14,7 +14,7 @@ repository = "https://github.com/dronesforwork/inline-python"
 proc_macro = true
 
 [dependencies]
-proc-macro2 = { version = "0.4", features = ["span-locations"] }
-quote = "0.6"
-syn = { version = "0.15", features = ["parsing"] }
-pyo3 = ">=0.6, <0.8"
+proc-macro2 = { version = "1.0", features = ["span-locations"] }
+quote = "1.0"
+syn = { version = "1.0", features = ["parsing"] }
+pyo3 = "0.8.1"

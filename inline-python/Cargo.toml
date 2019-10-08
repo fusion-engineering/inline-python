@@ -1,6 +1,6 @@
 [package]
 name = "inline-python"
-version = "0.3.1"
+version = "0.3.2"
 authors = [
 	"Mara Bos <m-ou.se@m-ou.se>",
 	"Maarten de Vries <maarten@de-vri.es>",
@@ -12,5 +12,5 @@ repository = "https://github.com/dronesforwork/inline-python"
 keywords = ["python", "inline", "embed", "macro"]
 
 [dependencies]
-inline-python-macros = { version = "=0.3.1", path = "../inline-python-macros" }
-pyo3 = ">=0.6, <0.8"
+inline-python-macros = { version = "=0.3.2", path = "../inline-python-macros" }
+pyo3 = "0.8.1"

@@ -97,7 +97,7 @@ pub use pyo3;
 use pyo3::{
 	ffi,
 	types::{PyAny, PyDict},
-	AsPyPointer, FromPyObject, IntoPyObject, PyErr, PyObject, PyResult, Python,
+	AsPyPointer, FromPyObject, IntoPy, PyErr, PyObject, PyResult, Python,
 };
 
 #[doc(hidden)]
@@ -188,7 +188,7 @@ impl Context {
 		}
 
 		Ok(Self {
-			globals: globals.into_object(py),
+			globals: globals.into_py(py),
 		})
 	}
 

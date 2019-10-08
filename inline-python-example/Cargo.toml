@@ -5,4 +5,4 @@ authors = ["Mara Bos <m-ou.se@m-ou.se>"]
 edition = "2018"
 
 [dependencies]
-inline-python = { version = "0.3.1", path = "../inline-python" }
+inline-python = { version = "0.3.2", path = "../inline-python" }
