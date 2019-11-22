@@ -1,6 +1,6 @@
 [package]
 name = "inline-python"
-version = "0.3.3"
+version = "0.4.0"
 authors = [
 	"Mara Bos <m-ou.se@m-ou.se>",
 	"Maarten de Vries <maarten@de-vri.es>",
