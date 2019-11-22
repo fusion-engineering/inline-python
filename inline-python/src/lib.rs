@@ -127,16 +127,14 @@ pub use std::ffi::CStr;
 ///
 /// ```
 /// # #![feature(proc_macro_hygiene)]
-/// use inline_python::{pyo3, python};
+/// use inline_python::python;
 /// let context = inline_python::Context::new();
 /// python! {
 ///   #![context = &context]
 ///   foo = 5
 /// }
 ///
-/// let gil = pyo3::Python::acquire_gil();
-/// let py  = gil.python();
-/// let foo: Option<i32> = context.get_global(py, "foo").unwrap();
+/// let foo: Option<i32> = context.get_global("foo").unwrap();
 /// assert_eq!(foo, Some(5));
 /// ```
 pub struct Context {
@@ -198,7 +196,15 @@ impl Context {
 	}
 
 	/// Retrieve a global variable from the context.
-	pub fn get_global<'p, T: FromPyObject<'p>>(&self, py: Python<'p>, name: &str) -> PyResult<Option<T>> {
+	///
+	/// This function temporarily acquires the GIL.
+	/// If you already have the GIL, use [`Context::get_global_with_gil`] instead.
+	pub fn get_global<T: for<'p> FromPyObject<'p>>(&self, name: &str) -> PyResult<Option<T>> {
+		self.get_global_with_gil(Python::acquire_gil().python(), name)
+	}
+
+	/// Retrieve a global variable from the context.
+	pub fn get_global_with_gil<'p, T: FromPyObject<'p>>(&self, py: Python<'p>, name: &str) -> PyResult<Option<T>> {
 		match self.globals(py).get_item(name) {
 			None => Ok(None),
 			Some(value) => FromPyObject::extract(value).map(Some),
