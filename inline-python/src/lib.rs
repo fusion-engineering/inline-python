@@ -198,7 +198,7 @@ impl Context {
 	}
 
 	/// Retrieve a global variable from the context.
-	pub fn get_global<'p, T: FromPyObject<'p>>(self, py: Python<'p>, name: &str) -> PyResult<Option<T>> {
+	pub fn get_global<'p, T: FromPyObject<'p>>(&self, py: Python<'p>, name: &str) -> PyResult<Option<T>> {
 		match self.globals(py).get_item(name) {
 			None => Ok(None),
 			Some(value) => FromPyObject::extract(value).map(Some),
