@@ -3,14 +3,13 @@
 
 extern crate proc_macro;
 
+use self::embed_python::EmbedPython;
 use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::{Span, TokenStream};
+use pyo3::{ffi, AsPyPointer, PyErr, PyObject, Python};
 use quote::quote;
 use std::os::raw::c_char;
 use std::ptr::NonNull;
-use syn::parse::{Parse, ParseStream};
-
-use pyo3::{ffi, AsPyPointer, PyErr, PyObject, Python};
 
 /// Create a syn::Error with an optional span, and a format string with arguments.
 ///
@@ -27,10 +26,6 @@ macro_rules! error {
 }
 
 mod embed_python;
-use embed_python::EmbedPython;
-
-mod meta;
-use self::meta::{Meta, NameValue};
 
 fn python_impl(input: TokenStream) -> syn::Result<TokenStream> {
 	let tokens = input.clone();
@@ -40,10 +35,9 @@ fn python_impl(input: TokenStream) -> syn::Result<TokenStream> {
 		|t| t.span().unwrap().source_file().path().to_string_lossy().into_owned(),
 	);
 
-	let args = syn::parse2::<Args>(input)?;
-
 	let mut x = EmbedPython::new();
-	x.add(args.code)?;
+
+	x.add(input)?;
 
 	let EmbedPython { mut python, variables, .. } = x;
 
@@ -66,82 +60,20 @@ fn python_impl(input: TokenStream) -> syn::Result<TokenStream> {
 
 	let compiled = syn::LitByteStr::new(&compiled, proc_macro2::Span::call_site());
 
-	let make_context = match args.context {
-		Some(context) => quote! {
-			let _context : &::inline_python::Context = #context;
-		},
-		None => quote! {
-			let _context = &::inline_python::Context::new_with_gil(_python_lock.python()).expect("failed to create python context");
-		},
-	};
-
 	Ok(quote! {
-		{
-			let _python_lock = ::inline_python::pyo3::Python::acquire_gil();
-			#make_context
-			let mut _python_variables = ::inline_python::pyo3::types::PyDict::new(_python_lock.python());
-			#variables
-			let r = ::inline_python::run_python_code(
-				_python_lock.python(),
-				_context,
-				#compiled,
-				Some(_python_variables)
-			);
-			match r {
-				Ok(_) => (),
-				Err(e) => {
-					e.print(_python_lock.python());
-					panic!("python!{...} failed to execute");
-				}
-			}
-		}
+		::inline_python::FromInlinePython::magic(
+			#compiled,
+			|globals| { #variables },
+		)
 	})
 }
 
-/// Execute inline python code.
-///
-/// See the module documentation for [inline-python](https://docs.rs/inline-python) for more usage information.
 #[proc_macro]
 pub fn python(input: TokenStream1) -> TokenStream1 {
 	TokenStream1::from(match python_impl(TokenStream::from(input)) {
 		Ok(tokens) => tokens,
 		Err(error) => error.to_compile_error(),
 	})
-}
-
-#[derive(Debug, Default)]
-struct Args {
-	context: Option<syn::Expr>,
-	code: TokenStream,
-}
-
-fn set_once(destination: &mut Option<syn::Expr>, attribute: NameValue) -> syn::Result<()> {
-	if destination.is_some() {
-		Err(error!(attribute.name.span(), "duplicate attribute"))
-	} else {
-		destination.replace(attribute.value);
-		Ok(())
-	}
-}
-
-impl Parse for Args {
-	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let mut context = None;
-
-		while let Some(meta) = Meta::maybe_parse(input)? {
-			for attribute in meta.args.into_iter() {
-				match attribute.name.to_string().as_str() {
-					"context" => set_once(&mut context, attribute)?,
-					_ => return Err(error!(attribute.name.span(), "unknown attribute")),
-				}
-			}
-		}
-
-		Ok(Self {
-			context,
-			code: input.parse()?,
-		})
-	}
 }
 
 unsafe fn as_c_str<T: AsRef<[u8]> + ?Sized>(value: &T) -> *const c_char {

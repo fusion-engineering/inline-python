@@ -4,24 +4,22 @@ use inline_python::python;
 
 #[test]
 fn continue_context() {
-	let context = inline_python::Context::new();
-	python! {
-		#![context = &context]
+	let c = inline_python::Context::new();
+	c.run(python! {
 		foo = 5
-	}
-	python! {
-		#![context = &context]
+	});
+	c.run(python! {
 		assert foo == 5
-	}
+	});
 }
 
 #[test]
 fn extract_global() {
-	let context = inline_python::Context::new();
-	python! {
-		#![context = &context]
-		foo = 5
-	}
+	let c = inline_python::Context::new();
 
-	assert_eq!(context.get_global("foo").unwrap(), Some(5));
+	c.run(python! {
+		foo = 5
+	});
+
+	assert_eq!(c.get::<i32>("foo"), 5);
 }

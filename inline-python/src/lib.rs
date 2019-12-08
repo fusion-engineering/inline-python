@@ -29,28 +29,55 @@
 //! `var` needs to implement [`pyo3::ToPyObject`].
 //!
 //! ## Re-using a Python context
+//!
 //! It is possible to create a [`Context`] object ahead of time and use it for running the Python code.
 //! The context can be re-used for multiple invocations to share global variables across macro calls.
 //!
 //! ```
 //! # #![feature(proc_macro_hygiene)]
-//! # use inline_python::python;
-//! let c = inline_python::Context::new();
-//! python! {
-//!   #![context = &c]
+//! # use inline_python::{Context, python};
+//! let c = Context::new();
+//!
+//! c.run(python! {
 //!   foo = 5
-//! }
-//! python! {
-//!   #![context = &c]
+//! });
+//!
+//! c.run(python! {
 //!   assert foo == 5
-//! }
+//! });
+//! ```
+//!
+//! As a shortcut, you can assign a `python!{}` invocation directly to a
+//! variable of type `Context` to create a new context and run the Python code
+//! in it.
+//!
+//! ```
+//! # #![feature(proc_macro_hygiene)]
+//! # use inline_python::{Context, python};
+//! let c: Context = python! {
+//!   foo = 5
+//! };
+//!
+//! c.run(python! {
+//!   assert foo == 5
+//! });
 //! ```
 //!
 //! ## Getting information back
 //!
 //! A [`Context`] object could also be used to pass information back to Rust,
 //! as you can retrieve the global Python variables from the context through
-//! [`Context::get_global`].
+//! [`Context::get`].
+//!
+//! ```
+//! # #![feature(proc_macro_hygiene)]
+//! # use inline_python::{Context, python};
+//! let c: Context = python! {
+//!   foo = 5
+//! };
+//!
+//! assert_eq!(c.get::<i32>("foo"), 5);
+//! ```
 //!
 //! ## Syntax issues
 //!
@@ -89,158 +116,67 @@
 //!
 //! Everything else should work fine.
 
-use std::os::raw::c_char;
+use pyo3::{types::PyDict, Python};
 
-pub use inline_python_macros::python;
+mod context;
+mod run;
+
+pub use self::context::Context;
 pub use pyo3;
 
-use pyo3::{
-	ffi,
-	types::{PyAny, PyDict},
-	AsPyPointer, FromPyObject, IntoPy, PyErr, PyObject, PyResult, Python,
-};
+/// A block of Python code within your Rust code.
+///
+/// This macro can be used in three different ways:
+///
+///  1. By itself as a statement.
+///     In this case, the Python code is executed directly.
+///
+///  2. By assigning it to a [`Context`].
+///     In this case, the Python code is executed directly, and the context
+///     (the global variables) are available for re-use by other Python code
+///     or inspection by Rust code.
+///
+///  3. By passing it as an argument to a function taking a `PythonBlock`, such
+///     as [`Context::run`].
+///
+/// See [the crate's module level documentation](index.html) for examples.
+pub use inline_python_macros::python;
 
 #[doc(hidden)]
-pub use std::ffi::CStr;
-
-/// An execution context for Python code.
-///
-/// If you pass a manually created context to the `python!{}` macro, you can share it across invocations.
-/// This will keep all global variables and imports intact between macro invocations.
-///
-/// ```
-/// # #![feature(proc_macro_hygiene)]
-/// # use inline_python::python;
-/// let c = inline_python::Context::new();
-/// python! {
-///   #![context = &c]
-///   foo = 5
-/// }
-/// python! {
-///   #![context = &c]
-///   assert foo == 5
-/// }
-/// ```
-///
-/// You may also use it to inspect global variables after the execution of the Python code.
-/// Note that you need to acquire the GIL in order to access those globals:
-///
-/// ```
-/// # #![feature(proc_macro_hygiene)]
-/// use inline_python::python;
-/// let context = inline_python::Context::new();
-/// python! {
-///   #![context = &context]
-///   foo = 5
-/// }
-///
-/// let foo: Option<i32> = context.get_global("foo").unwrap();
-/// assert_eq!(foo, Some(5));
-/// ```
-pub struct Context {
-	globals: PyObject,
+pub trait FromInlinePython<F: FnOnce(&PyDict)> {
+	fn magic(bytecode: &'static [u8], set_variables: F) -> Self;
 }
 
-impl Context {
-	/// Create a new context for running python code.
-	///
-	/// This function temporarily acquires the GIL.
-	/// If you already have the GIL, use [`Context::new_with_gil`] instead.
-	///
-	/// This function panics if it fails to create the context.
-	/// See [`Context::new_checked`] for a version that returns a result.
-	pub fn new() -> Self {
-		let gil = Python::acquire_gil();
-		let py = gil.python();
-		match Self::new_with_gil(py) {
-			Ok(x) => x,
-			Err(error) => {
-				error.print(py);
-				panic!("failed to create python context");
-			}
-		}
-	}
-
-	/// Create a new context for running python code.
-	///
-	/// This function temporarily acquires the GIL.
-	/// If you already have the GIL, use [`Context::new_with_gil`] instead.
-	pub fn new_checked() -> PyResult<Self> {
-		let gil = Python::acquire_gil();
-		let py = gil.python();
-		Self::new_with_gil(py)
-	}
-
-	/// Create a new context for running Python code.
-	///
-	/// You must acquire the GIL to call this function.
-	pub fn new_with_gil(py: Python) -> PyResult<Self> {
-		let main_mod = unsafe { ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _) };
-		if main_mod.is_null() {
-			return Err(PyErr::fetch(py));
-		};
-
-		let globals = PyDict::new(py);
-		if unsafe { ffi::PyDict_Merge(globals.as_ptr(), ffi::PyModule_GetDict(main_mod), 0) != 0 } {
-			return Err(PyErr::fetch(py));
-		}
-
-		Ok(Self {
-			globals: globals.into_py(py),
-		})
-	}
-
-	/// Get the globals as dictionary.
-	pub fn globals<'p>(&self, py: Python<'p>) -> &'p PyDict {
-		unsafe { py.from_borrowed_ptr(self.globals.as_ptr()) }
-	}
-
-	/// Retrieve a global variable from the context.
-	///
-	/// This function temporarily acquires the GIL.
-	/// If you already have the GIL, use [`Context::get_global_with_gil`] instead.
-	pub fn get_global<T: for<'p> FromPyObject<'p>>(&self, name: &str) -> PyResult<Option<T>> {
-		self.get_global_with_gil(Python::acquire_gil().python(), name)
-	}
-
-	/// Retrieve a global variable from the context.
-	pub fn get_global_with_gil<'p, T: FromPyObject<'p>>(&self, py: Python<'p>, name: &str) -> PyResult<Option<T>> {
-		match self.globals(py).get_item(name) {
-			None => Ok(None),
-			Some(value) => FromPyObject::extract(value).map(Some),
-		}
+/// Converting a `python!{}` block to `()` will run the Python code.
+///
+/// This happens when `python!{}` is used as a statement by itself.
+impl<F: FnOnce(&PyDict)> FromInlinePython<F> for () {
+	fn magic(bytecode: &'static [u8], set_variables: F) {
+		let _: Context = FromInlinePython::magic(bytecode, set_variables);
 	}
 }
 
+/// Assigning a `python!{}` block to a `Context` will run the Python code and capture the resulting context.
+impl<F: FnOnce(&PyDict)> FromInlinePython<F> for Context {
+	fn magic(bytecode: &'static [u8], set_variables: F) -> Self {
+		let gil_guard = Python::acquire_gil();
+		let py = gil_guard.python();
+		let context = Context::new_with_gil(py);
+		context.run_with_gil(py, PythonBlock { bytecode, set_variables });
+		context
+	}
+}
+
+/// Using a `python!{}` block as a `PythonBlock` object will not do anything yet.
+impl<F: FnOnce(&PyDict)> FromInlinePython<F> for PythonBlock<F> {
+	fn magic(bytecode: &'static [u8], set_variables: F) -> Self {
+		Self { bytecode, set_variables }
+	}
+}
+
+/// Represents a `python!{}` block.
 #[doc(hidden)]
-pub fn run_python_code<'p>(py: Python<'p>, context: &Context, compiled_code: &[u8], rust_vars: Option<&PyDict>) -> PyResult<&'p PyAny> {
-	unsafe {
-		// Add the rust variable in a global dictionary named RUST.
-		// If no rust vars are given, make the RUST global an empty dictionary.
-		let rust_vars = rust_vars.unwrap_or_else(|| PyDict::new(py)).as_ptr();
-		if ffi::PyDict_SetItemString(context.globals.as_ptr(), "RUST\0".as_ptr() as *const _, rust_vars) != 0 {
-			return Err(PyErr::fetch(py));
-		}
-
-		let compiled_code = python_unmarshal_object_from_bytes(py, compiled_code)?;
-		let result = ffi::PyEval_EvalCode(compiled_code.as_ptr(), context.globals.as_ptr(), std::ptr::null_mut());
-
-		py.from_owned_ptr_or_err(result)
-	}
-}
-
-extern "C" {
-	fn PyMarshal_ReadObjectFromString(data: *const c_char, len: isize) -> *mut ffi::PyObject;
-}
-
-/// Use built-in python marshal support to read an object from bytes.
-fn python_unmarshal_object_from_bytes(py: Python, data: &[u8]) -> pyo3::PyResult<PyObject> {
-	unsafe {
-		let object = PyMarshal_ReadObjectFromString(data.as_ptr() as *const c_char, data.len() as isize);
-		if object.is_null() {
-			return Err(PyErr::fetch(py));
-		}
-
-		Ok(PyObject::from_owned_ptr(py, object))
-	}
+pub struct PythonBlock<F> {
+	bytecode: &'static [u8],
+	set_variables: F,
 }

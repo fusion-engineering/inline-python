@@ -76,14 +76,12 @@ impl EmbedPython {
 						} else {
 							unreachable!()
 						};
-						let name_str = name.to_string();
-						self.python.push_str("RUST['");
+						let name_str = format!("_RUST_{}", name);
 						self.python.push_str(&name_str);
-						self.python.push_str("']");
-						self.loc.column += name_str.chars().count() + 1;
+						self.loc.column += name_str.chars().count() - 6 + 1;
 						if self.variable_names.insert(name_str.clone()) {
 							self.variables.extend(quote! {
-								_python_variables.set_item(#name_str, #name)
+								globals.set_item(#name_str, #name)
 									.expect("Unable to convert variable to Python");
 							});
 						}
