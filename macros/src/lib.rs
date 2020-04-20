@@ -61,7 +61,7 @@ fn python_impl(input: TokenStream) -> syn::Result<TokenStream> {
 	let compiled = syn::LitByteStr::new(&compiled, proc_macro2::Span::call_site());
 
 	Ok(quote! {
-		::inline_python::FromInlinePython::magic(
+		::inline_python::FromInlinePython::from_python_macro(
 			#compiled,
 			|globals| { #variables },
 		)
