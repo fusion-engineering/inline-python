@@ -2,5 +2,4 @@
 members = [
 	"inline-python",
 	"inline-python-macros",
-	"inline-python-example",
 ]
