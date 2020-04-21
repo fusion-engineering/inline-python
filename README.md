@@ -31,26 +31,49 @@ To reference Rust variables, use `'var`, as shown in the example above.
 `var` needs to implement `pyo3::ToPyObject`.
 
 ### Re-using a Python context
+
 It is possible to create a `Context` object ahead of time and use it for running the Python code.
 The context can be re-used for multiple invocations to share global variables across macro calls.
 
 ```rust
-let c = inline_python::Context::new();
-python! {
-  #![context = &c]
+let c = Context::new();
+
+c.run(python! {
   foo = 5
-}
-python! {
-  #![context = &c]
+});
+
+c.run(python! {
   assert foo == 5
-}
+});
+```
+
+As a shortcut, you can assign a `python!{}` invocation directly to a
+variable of type `Context` to create a new context and run the Python code
+in it.
+
+```rust
+let c: Context = python! {
+  foo = 5
+};
+
+c.run(python! {
+  assert foo == 5
+});
 ```
 
 ### Getting information back
 
 A `Context` object could also be used to pass information back to Rust,
 as you can retrieve the global Python variables from the context through
-`Context::get_global`.
+`Context::get`.
+
+```rust
+let c: Context = python! {
+  foo = 5
+};
+
+assert_eq!(c.get::<i32>("foo"), 5);
+```
 
 ### Syntax issues
 
@@ -88,5 +111,3 @@ Other minor things that don't work are:
   to `//`.
 
 Everything else should work fine.
-
-License: BSD-2-Clause
