@@ -30,6 +30,8 @@ mod embed_python;
 fn python_impl(input: TokenStream) -> syn::Result<TokenStream> {
 	let tokens = input.clone();
 
+	check_no_attribute(input.clone())?;
+
 	let mut filename = input.clone().into_iter().next().map_or_else(
 		|| String::from("<unknown>"),
 		|t| t.span().unwrap().source_file().path().to_string_lossy().into_owned(),
@@ -66,6 +68,23 @@ fn python_impl(input: TokenStream) -> syn::Result<TokenStream> {
 			|globals| { #variables },
 		)
 	})
+}
+
+fn check_no_attribute(input: TokenStream) -> syn::Result<()> {
+	let mut input = input.into_iter();
+	if let Some(token) = input.next() {
+		if token.to_string() == "#"
+			&& input.next().map_or(false, |t| t.to_string() == "!")
+			&& input.next().map_or(false, |t| t.to_string().starts_with('['))
+		{
+			return Err(error!(
+				token.span(),
+				"Attributes in python!{{}} are no longer supported. \
+				Use context.run(python!{{..}}) to use a context."
+			));
+		}
+	}
+	Ok(())
 }
 
 #[proc_macro]
