@@ -138,6 +138,27 @@ impl Context {
 	///
 	/// Use this with `pyo3::wrap_pyfunction` or `pyo3::wrap_pymodule`.
 	///
+	/// ```
+	/// # #![feature(proc_macro_hygiene)]
+	/// # use inline_python::{Context, python};
+	/// use inline_python::pyo3::{prelude::*, wrap_pyfunction};
+	///
+	/// #[pyfunction]
+	/// fn get_five() -> i32 {
+	///     5
+	/// }
+	///
+	/// fn main() {
+	///     let c = Context::new();
+	///
+	///     c.add_wrapped(wrap_pyfunction!(get_five));
+	///
+	///     c.run(python! {
+	///         assert get_five() == 5
+	///     });
+	/// }
+	/// ```
+	///
 	/// This function temporarily acquires the GIL.
 	/// If you already have the GIL, you can use [`Context::add_wrapped_with_gil`] instead.
 	pub fn add_wrapped(&self, wrapper: &impl Fn(Python) -> PyObject) {
