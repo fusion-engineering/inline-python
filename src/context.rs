@@ -1,6 +1,6 @@
 use crate::run::run_python_code;
 use crate::PythonBlock;
-use pyo3::{ffi, types::PyDict, AsPyPointer, AsPyRef, FromPyObject, Py, PyErr, PyResult, Python, ToPyObject};
+use pyo3::{ffi, types::PyDict, AsPyPointer, AsPyRef, FromPyObject, Py, PyErr, PyObject, PyResult, Python, ToPyObject};
 
 /// An execution context for Python code.
 ///
@@ -132,6 +132,25 @@ impl Context {
 				panic!("Unable to set `{}` from a `{}`", name, std::any::type_name::<T>());
 			}
 		}
+	}
+
+	/// Add a wrapped #[pyfunction] or #[pymodule] using its own `__name__`.
+	///
+	/// Use this with `pyo3::wrap_pyfunction` or `pyo3::wrap_pymodule`.
+	///
+	/// This function temporarily acquires the GIL.
+	/// If you already have the GIL, you can use [`Context::add_wrapped_with_gil`] instead.
+	pub fn add_wrapped(&self, wrapper: &impl Fn(Python) -> PyObject) {
+		self.add_wrapped_with_gil(Python::acquire_gil().python(), wrapper);
+	}
+
+	/// Add a wrapped #[pyfunction] or #[pymodule] using its own `__name__`.
+	///
+	/// See [Context::add_wrapped].
+	pub fn add_wrapped_with_gil<'p>(&self, py: Python<'p>, wrapper: &impl Fn(Python) -> PyObject) {
+		let obj = wrapper(py);
+		let name = obj.getattr(py, "__name__").expect("Missing __name__");
+		self.set(name.extract(py).unwrap(), obj)
 	}
 
 	/// Run Python code using this context.
