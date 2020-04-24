@@ -1,6 +1,6 @@
 #![feature(proc_macro_hygiene)]
 
-use inline_python::pyo3::{prelude::*, wrap_pyfunction};
+use inline_python::pyo3::{self, prelude::*, wrap_pyfunction};
 use inline_python::{python, Context};
 
 #[pyfunction]
