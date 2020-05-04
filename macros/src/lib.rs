@@ -1,33 +1,19 @@
-#![recursion_limit = "128"]
 #![feature(proc_macro_span)]
+#![feature(proc_macro_diagnostic)]
 
 extern crate proc_macro;
 
 use self::embed_python::EmbedPython;
 use proc_macro::TokenStream as TokenStream1;
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::{Literal, Span, TokenStream};
 use pyo3::{ffi, AsPyPointer, PyErr, PyObject, Python};
 use quote::quote;
 use std::os::raw::c_char;
 use std::ptr::NonNull;
 
-/// Create a syn::Error with an optional span, and a format string with arguments.
-///
-/// If no span is given, it defaults to Span::call_site().
-///
-/// For example:
-/// ```no_compile
-/// error!(token.span(), "foo: {}", "bar"); // With span.
-/// error!("foo: {}", "bar"); // Without span.
-/// ```
-macro_rules! error {
-	($format:literal $($tokens:tt)*) => ( syn::Error::new(proc_macro2::Span::call_site(), format!($format $($tokens)*)) );
-	($span:expr, $format:literal $($tokens:tt)*) => ( syn::Error::new($span, format!($format $($tokens)*)) );
-}
-
 mod embed_python;
 
-fn python_impl(input: TokenStream) -> syn::Result<TokenStream> {
+fn python_impl(input: TokenStream) -> Result<TokenStream, ()> {
 	let tokens = input.clone();
 
 	check_no_attribute(input.clone())?;
@@ -51,16 +37,19 @@ fn python_impl(input: TokenStream) -> syn::Result<TokenStream> {
 		let py = gil.python();
 
 		let compiled_code = match NonNull::new(ffi::Py_CompileString(as_c_str(&python), as_c_str(&filename), ffi::Py_file_input)) {
-			None => return Err(compile_error_msg(py, tokens)),
+			None => {
+				emit_compile_error_msg(py, tokens);
+				return Err(());
+			}
 			Some(x) => PyObject::from_owned_ptr(py, x.as_ptr()),
 		};
 
 		python_marshal_object_to_bytes(py, &compiled_code)
 			// TODO: Use error from Pyo3.
-			.map_err(|_e| error!("failed to generate python byte-code"))?
+			.map_err(|_e| Span::call_site().unwrap().error("failed to generate python byte-code").emit())?
 	};
 
-	let compiled = syn::LitByteStr::new(&compiled, proc_macro2::Span::call_site());
+	let compiled = Literal::byte_string(&compiled);
 
 	Ok(quote! {
 		::inline_python::FromInlinePython::from_python_macro(
@@ -70,18 +59,22 @@ fn python_impl(input: TokenStream) -> syn::Result<TokenStream> {
 	})
 }
 
-fn check_no_attribute(input: TokenStream) -> syn::Result<()> {
+fn check_no_attribute(input: TokenStream) -> Result<(), ()> {
 	let mut input = input.into_iter();
 	if let Some(token) = input.next() {
 		if token.to_string() == "#"
 			&& input.next().map_or(false, |t| t.to_string() == "!")
 			&& input.next().map_or(false, |t| t.to_string().starts_with('['))
 		{
-			return Err(error!(
-				token.span(),
-				"Attributes in python!{{}} are no longer supported. \
-				Use context.run(python!{{..}}) to use a context."
-			));
+			token
+				.span()
+				.unwrap()
+				.error(
+					"Attributes in python!{} are no longer supported. \
+					Use context.run(python!{..}) to use a context.",
+				)
+				.emit();
+			return Err(());
 		}
 	}
 	Ok(())
@@ -91,7 +84,7 @@ fn check_no_attribute(input: TokenStream) -> syn::Result<()> {
 pub fn python(input: TokenStream1) -> TokenStream1 {
 	TokenStream1::from(match python_impl(TokenStream::from(input)) {
 		Ok(tokens) => tokens,
-		Err(error) => error.to_compile_error(),
+		Err(()) => TokenStream::new(),
 	})
 }
 
@@ -151,12 +144,16 @@ fn err_value_object(py: Python, value: pyo3::PyErrValue) -> Option<PyObject> {
 }
 
 /// Format a nice error message for a python compilation error.
-fn compile_error_msg(py: Python, tokens: TokenStream) -> syn::Error {
+fn emit_compile_error_msg(py: Python, tokens: TokenStream) {
 	use pyo3::type_object::PyTypeObject;
 	use pyo3::AsPyRef;
 
 	if !PyErr::occurred(py) {
-		return error!("failed to compile python code, but no detailed error is available");
+		Span::call_site()
+			.unwrap()
+			.error("failed to compile python code, but no detailed error is available")
+			.emit();
+		return;
 	}
 
 	let error = PyErr::fetch(py);
@@ -169,17 +166,27 @@ fn compile_error_msg(py: Python, tokens: TokenStream) -> syn::Error {
 		} = error;
 
 		let value = match err_value_object(py, value) {
-			None => return error!("python: {}", kind.as_ref(py).name()),
+			None => {
+				return Span::call_site()
+					.unwrap()
+					.error(format!("python: {}", kind.as_ref(py).name()))
+					.emit()
+			}
 			Some(x) => x,
 		};
 
-		return match value.extract::<(String, (String, i32, i32, String))>(py) {
+		match value.extract::<(String, (String, i32, i32, String))>(py) {
 			Ok((msg, (file, line, col, _token))) => match span_for_line(tokens, line as usize, col as usize) {
-				Some(span) => error!(span, "python: {}", msg),
-				None => error!("python: {} at {}:{}:{}", msg, file, line, col),
+				Some(span) => span.unwrap().error(format!("python: {}", msg)).emit(),
+				None => Span::call_site()
+					.unwrap()
+					.error(format!("python: {} at {}:{}:{}", msg, file, line, col))
+					.emit(),
 			},
-			Err(_) => error!("python: {}", python_str(&value)),
-		};
+			Err(_) => Span::call_site().unwrap().error(format!("python: {}", python_str(&value))).emit(),
+		}
+
+		return;
 	}
 
 	let PyErr {
@@ -193,7 +200,7 @@ fn compile_error_msg(py: Python, tokens: TokenStream) -> syn::Error {
 		Some(x) => python_str(&x),
 	};
 
-	error!("python: {}", message)
+	Span::call_site().unwrap().error(format!("python: {}", message)).emit();
 }
 
 /// Get a span for a specific line of input from a TokenStream.

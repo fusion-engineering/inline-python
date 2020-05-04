@@ -22,7 +22,7 @@ impl EmbedPython {
 		}
 	}
 
-	fn add_whitespace(&mut self, span: Span, loc: LineColumn) -> syn::Result<()> {
+	fn add_whitespace(&mut self, span: Span, loc: LineColumn) -> Result<(), ()> {
 		if loc.line > self.loc.line {
 			while loc.line > self.loc.line {
 				self.python.push('\n');
@@ -30,7 +30,7 @@ impl EmbedPython {
 			}
 			let first_indent = *self.first_indent.get_or_insert(loc.column);
 			let indent = loc.column.checked_sub(first_indent);
-			let indent = indent.ok_or_else(|| error!(span, "Invalid indentation on line {}", loc.line))?;
+			let indent = indent.ok_or_else(|| span.unwrap().error(format!("Invalid indentation on line {}", loc.line)).emit())?;
 			for _ in 0..indent {
 				self.python.push(' ');
 			}
@@ -45,7 +45,7 @@ impl EmbedPython {
 		Ok(())
 	}
 
-	pub fn add(&mut self, input: TokenStream) -> syn::Result<()> {
+	pub fn add(&mut self, input: TokenStream) -> Result<(), ()> {
 		let mut tokens = input.into_iter();
 
 		while let Some(token) = tokens.next() {
