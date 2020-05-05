@@ -30,7 +30,7 @@ impl EmbedPython {
 			}
 			let first_indent = *self.first_indent.get_or_insert(loc.column);
 			let indent = loc.column.checked_sub(first_indent);
-			let indent = indent.ok_or_else(|| span.unwrap().error(format!("Invalid indentation on line {}", loc.line)).emit())?;
+			let indent = indent.ok_or_else(|| span.unwrap().error("Invalid indentation").emit())?;
 			for _ in 0..indent {
 				self.python.push(' ');
 			}
