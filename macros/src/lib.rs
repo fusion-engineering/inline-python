@@ -101,14 +101,10 @@ unsafe fn as_c_str<T: AsRef<[u8]> + ?Sized>(value: &T) -> *const c_char {
 	std::ffi::CStr::from_bytes_with_nul_unchecked(value.as_ref()).as_ptr()
 }
 
-extern "C" {
-	fn PyMarshal_WriteObjectToString(object: *mut ffi::PyObject, version: std::os::raw::c_int) -> *mut ffi::PyObject;
-}
-
 /// Use built-in python marshal support to turn an object into bytes.
 fn python_marshal_object_to_bytes(py: Python, object: &PyObject) -> pyo3::PyResult<Vec<u8>> {
 	unsafe {
-		let bytes = PyMarshal_WriteObjectToString(object.as_ptr(), 2);
+		let bytes = ffi::PyMarshal_WriteObjectToString(object.as_ptr(), 2);
 		if bytes.is_null() {
 			return Err(PyErr::fetch(py));
 		}
