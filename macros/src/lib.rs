@@ -51,10 +51,19 @@ fn python_impl(input: TokenStream) -> Result<TokenStream, ()> {
 
 	let compiled = Literal::byte_string(&compiled);
 
+	let varname = variables.keys();
+	let var = variables.values();
+
 	Ok(quote! {
 		::inline_python::FromInlinePython::from_python_macro(
 			#compiled,
-			|globals| { #variables },
+			|globals| {
+				#(
+					globals
+						.set_item(#varname, #var)
+						.expect("Unable to convert variable to Python");
+				)*
+			},
 		)
 	})
 }

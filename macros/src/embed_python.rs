@@ -1,12 +1,10 @@
-use proc_macro2::{Delimiter, LineColumn, Spacing, Span, TokenStream, TokenTree};
-use quote::quote;
-use std::collections::BTreeSet;
+use proc_macro2::{Delimiter, LineColumn, Spacing, Span, Ident, TokenStream, TokenTree};
+use std::collections::BTreeMap;
 use std::fmt::Write;
 
 pub struct EmbedPython {
 	pub python: String,
-	pub variables: TokenStream,
-	pub variable_names: BTreeSet<String>,
+	pub variables: BTreeMap<String, Ident>,
 	pub first_indent: Option<usize>,
 	pub loc: LineColumn,
 }
@@ -15,8 +13,7 @@ impl EmbedPython {
 	pub fn new() -> Self {
 		Self {
 			python: String::new(),
-			variables: TokenStream::new(),
-			variable_names: BTreeSet::new(),
+			variables: BTreeMap::new(),
 			loc: LineColumn { line: 1, column: 0 },
 			first_indent: None,
 		}
@@ -79,12 +76,7 @@ impl EmbedPython {
 						let name_str = format!("_RUST_{}", name);
 						self.python.push_str(&name_str);
 						self.loc.column += name_str.chars().count() - 6 + 1;
-						if self.variable_names.insert(name_str.clone()) {
-							self.variables.extend(quote! {
-								globals.set_item(#name_str, #name)
-									.expect("Unable to convert variable to Python");
-							});
-						}
+						self.variables.entry(name_str).or_insert(name);
 					} else if x.as_char() == '#' && x.spacing() == Spacing::Joint {
 						// Convert '##' to '//', because otherwise it's
 						// impossible to use the Python operators '//' and '//='.
