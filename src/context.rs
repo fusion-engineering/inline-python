@@ -1,6 +1,6 @@
 use crate::run::run_python_code;
 use crate::PythonBlock;
-use pyo3::{ffi, types::PyDict, AsPyPointer, AsPyRef, FromPyObject, Py, PyErr, PyObject, PyResult, Python, ToPyObject};
+use pyo3::{types::PyDict, AsPyRef, FromPyObject, Py, PyObject, PyResult, Python, ToPyObject};
 
 /// An execution context for Python code.
 ///
@@ -67,17 +67,9 @@ impl Context {
 	}
 
 	fn try_new(py: Python) -> PyResult<Self> {
-		let main_mod = unsafe { ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _) };
-		if main_mod.is_null() {
-			return Err(PyErr::fetch(py));
-		};
-
-		let globals = PyDict::new(py);
-		if unsafe { ffi::PyDict_Merge(globals.as_ptr(), ffi::PyModule_GetDict(main_mod), 0) != 0 } {
-			return Err(PyErr::fetch(py));
-		}
-
-		Ok(Self { globals: globals.into() })
+		Ok(Self {
+			globals: py.import("__main__")?.dict().copy()?.into(),
+		})
 	}
 
 	/// Get the globals as dictionary.
