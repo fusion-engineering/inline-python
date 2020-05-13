@@ -1,4 +1,4 @@
-use proc_macro2::{Delimiter, LineColumn, Spacing, Span, Ident, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Ident, LineColumn, Spacing, Span, TokenStream, TokenTree};
 use std::collections::BTreeMap;
 use std::fmt::Write;
 
