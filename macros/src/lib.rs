@@ -6,7 +6,7 @@ extern crate proc_macro;
 use self::embed_python::EmbedPython;
 use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::{Literal, Span, TokenStream};
-use pyo3::{ffi, types::PyBytes, AsPyPointer, FromPyPointer, ObjectProtocol, PyErr, PyObject, Python, ToPyObject};
+use pyo3::{ffi, types::PyBytes, AsPyPointer, FromPyPointer, PyErr, PyObject, Python, ToPyObject};
 use quote::quote;
 use std::ffi::CString;
 
