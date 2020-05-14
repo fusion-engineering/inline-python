@@ -1,0 +1,19 @@
+[package]
+name = "inline-python-examples"
+version = "0.0.0"
+
+[[example]]
+name = "context"
+path = "context.rs"
+
+[[example]]
+name = "matplotlib"
+path = "matplotlib.rs"
+
+[[example]]
+name = "rust-fn"
+path = "rust-fn.rs"
+
+[dependencies]
+inline-python = { path = ".." }
+pyo3 = "0.10.0"

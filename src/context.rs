@@ -130,10 +130,10 @@ impl Context {
 	///
 	/// Use this with `pyo3::wrap_pyfunction` or `pyo3::wrap_pymodule`.
 	///
-	/// ```
+	/// ```ignore
 	/// # #![feature(proc_macro_hygiene)]
 	/// # use inline_python::{Context, python};
-	/// use inline_python::pyo3::{self, prelude::*, wrap_pyfunction};
+	/// use pyo3::{prelude::*, wrap_pyfunction};
 	///
 	/// #[pyfunction]
 	/// fn get_five() -> i32 {
