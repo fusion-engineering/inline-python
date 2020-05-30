@@ -163,7 +163,7 @@ impl Context {
 	pub fn add_wrapped_with_gil<'p>(&self, py: Python<'p>, wrapper: &impl Fn(Python) -> PyObject) {
 		let obj = wrapper(py);
 		let name = obj.getattr(py, "__name__").expect("Missing __name__");
-		self.set(name.extract(py).unwrap(), obj)
+		self.set_with_gil(py, name.extract(py).unwrap(), obj)
 	}
 
 	/// Run Python code using this context.
