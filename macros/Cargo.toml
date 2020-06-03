@@ -17,3 +17,6 @@ proc_macro = true
 proc-macro2 = { version = "1.0", features = ["span-locations"] }
 quote = "1.0"
 pyo3 = { version = "0.10.0", default-features = false }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.71"
