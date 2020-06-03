@@ -1,3 +1,5 @@
+//! Helper crate for `inline-python` and `ct-python`.
+
 #![feature(proc_macro_span)]
 
 extern crate proc_macro;
@@ -103,6 +105,7 @@ fn check_no_attribute(input: TokenStream) -> Result<(), TokenStream> {
 	Ok(())
 }
 
+#[doc(hidden)]
 #[proc_macro]
 pub fn python(input: TokenStream1) -> TokenStream1 {
 	TokenStream1::from(match python_impl(TokenStream::from(input)) {
@@ -111,6 +114,7 @@ pub fn python(input: TokenStream1) -> TokenStream1 {
 	})
 }
 
+#[doc(hidden)]
 #[proc_macro]
 pub fn ct_python(input: TokenStream1) -> TokenStream1 {
 	TokenStream1::from(match ct_python_impl(TokenStream::from(input)) {
