@@ -6,11 +6,13 @@ extern crate proc_macro;
 use self::embed_python::EmbedPython;
 use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::{Literal, Span, TokenStream};
-use pyo3::{ffi, types::PyBytes, AsPyPointer, FromPyPointer, PyErr, PyObject, Python, ToPyObject};
+use pyo3::{ffi, types::PyBytes, AsPyPointer, FromPyPointer, PyObject, Python};
 use quote::quote;
 use std::ffi::CString;
 
 mod embed_python;
+mod error;
+mod run;
 
 fn python_impl(input: TokenStream) -> Result<TokenStream, ()> {
 	let tokens = input.clone();
@@ -33,7 +35,7 @@ fn python_impl(input: TokenStream) -> Result<TokenStream, ()> {
 		let py = gil.python();
 
 		let code = PyObject::from_owned_ptr_or_err(py, ffi::Py_CompileString(python.as_ptr(), filename.as_ptr(), ffi::Py_file_input))
-			.map_err(|err| emit_compile_error_msg(py, err, tokens))?;
+			.map_err(|err| error::emit_compile_error_msg(py, err, tokens))?;
 
 		Literal::byte_string(
 			PyBytes::from_owned_ptr_or_err(py, ffi::PyMarshal_WriteObjectToString(code.as_ptr(), pyo3::marshal::VERSION))
@@ -57,6 +59,33 @@ fn python_impl(input: TokenStream) -> Result<TokenStream, ()> {
 			},
 		)
 	})
+}
+
+fn ct_python_impl(input: TokenStream) -> Result<TokenStream, ()> {
+	let tokens = input.clone();
+
+	let filename = Span::call_site().unwrap().source_file().path().to_string_lossy().into_owned();
+
+	let mut x = EmbedPython::new();
+
+	x.compile_time = true;
+
+	x.add(input)?;
+
+	let EmbedPython { python, .. } = x;
+
+	let python = CString::new(python).unwrap();
+	let filename = CString::new(filename).unwrap();
+
+	let gil = Python::acquire_gil();
+	let py = gil.python();
+
+	let code = unsafe {
+		PyObject::from_owned_ptr_or_err(py, ffi::Py_CompileString(python.as_ptr(), filename.as_ptr(), ffi::Py_file_input))
+			.map_err(|err| error::emit_compile_error_msg(py, err, tokens.clone()))?
+	};
+
+	run::run_ct_python(py, code, tokens)
 }
 
 fn check_no_attribute(input: TokenStream) -> Result<(), ()> {
@@ -88,53 +117,10 @@ pub fn python(input: TokenStream1) -> TokenStream1 {
 	})
 }
 
-/// Format a nice error message for a python compilation error.
-fn emit_compile_error_msg(py: Python, error: PyErr, tokens: TokenStream) {
-	use pyo3::type_object::PyTypeObject;
-	use pyo3::AsPyRef;
-
-	let value = error.to_object(py);
-
-	if value.is_none() {
-		Span::call_site()
-			.unwrap()
-			.error(format!("python: {}", error.ptype.as_ref(py).name()))
-			.emit();
-		return;
-	}
-
-	if error.matches(py, pyo3::exceptions::SyntaxError::type_object()) {
-		let line: Option<usize> = value.getattr(py, "lineno").ok().and_then(|x| x.extract(py).ok());
-		let msg: Option<String> = value.getattr(py, "msg").ok().and_then(|x| x.extract(py).ok());
-		if let (Some(line), Some(msg)) = (line, msg) {
-			if let Some(span) = span_for_line(tokens, line) {
-				span.unwrap().error(format!("python: {}", msg)).emit();
-				return;
-			}
-		}
-	}
-
-	Span::call_site()
-		.unwrap()
-		.error(format!("python: {}", value.as_ref(py).str().unwrap()))
-		.emit();
-}
-
-/// Get a span for a specific line of input from a TokenStream.
-fn span_for_line(input: TokenStream, line: usize) -> Option<Span> {
-	let mut spans = input
-		.into_iter()
-		.map(|x| x.span().unwrap())
-		.skip_while(|span| span.start().line < line)
-		.take_while(|span| span.start().line == line);
-
-	let mut result = spans.next()?;
-	for span in spans {
-		result = match result.join(span) {
-			None => return Some(Span::from(result)),
-			Some(span) => span,
-		}
-	}
-
-	Some(Span::from(result))
+#[proc_macro]
+pub fn ct_python(input: TokenStream1) -> TokenStream1 {
+	TokenStream1::from(match ct_python_impl(TokenStream::from(input)) {
+		Ok(tokens) => tokens,
+		Err(()) => quote!(unimplemented!()).into()
+	})
 }

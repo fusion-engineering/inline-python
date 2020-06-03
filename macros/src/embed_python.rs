@@ -7,6 +7,7 @@ pub struct EmbedPython {
 	pub variables: BTreeMap<String, Ident>,
 	pub first_indent: Option<usize>,
 	pub loc: LineColumn,
+	pub compile_time: bool,
 }
 
 impl EmbedPython {
@@ -16,6 +17,7 @@ impl EmbedPython {
 			variables: BTreeMap::new(),
 			loc: LineColumn { line: 1, column: 0 },
 			first_indent: None,
+			compile_time: false,
 		}
 	}
 
@@ -67,7 +69,7 @@ impl EmbedPython {
 					self.loc.column += end.len();
 				}
 				TokenTree::Punct(x) => {
-					if x.as_char() == '\'' && x.spacing() == Spacing::Joint {
+					if !self.compile_time && x.as_char() == '\'' && x.spacing() == Spacing::Joint {
 						let name = if let Some(TokenTree::Ident(name)) = tokens.next() {
 							name
 						} else {
