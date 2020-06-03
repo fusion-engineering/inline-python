@@ -1,4 +1,5 @@
 use proc_macro2::{Delimiter, Ident, LineColumn, Spacing, Span, TokenStream, TokenTree};
+use quote::quote_spanned;
 use std::collections::BTreeMap;
 use std::fmt::Write;
 
@@ -21,7 +22,7 @@ impl EmbedPython {
 		}
 	}
 
-	fn add_whitespace(&mut self, span: Span, loc: LineColumn) -> Result<(), ()> {
+	fn add_whitespace(&mut self, span: Span, loc: LineColumn) -> Result<(), TokenStream> {
 		if loc.line > self.loc.line {
 			while loc.line > self.loc.line {
 				self.python.push('\n');
@@ -29,7 +30,7 @@ impl EmbedPython {
 			}
 			let first_indent = *self.first_indent.get_or_insert(loc.column);
 			let indent = loc.column.checked_sub(first_indent);
-			let indent = indent.ok_or_else(|| span.unwrap().error("Invalid indentation").emit())?;
+			let indent = indent.ok_or_else(|| quote_spanned!(span => compile_error!{"Invalid indentation"}))?;
 			for _ in 0..indent {
 				self.python.push(' ');
 			}
@@ -44,7 +45,7 @@ impl EmbedPython {
 		Ok(())
 	}
 
-	pub fn add(&mut self, input: TokenStream) -> Result<(), ()> {
+	pub fn add(&mut self, input: TokenStream) -> Result<(), TokenStream> {
 		let mut tokens = input.into_iter();
 
 		while let Some(token) = tokens.next() {

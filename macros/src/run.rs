@@ -1,10 +1,10 @@
-use crate::error::emit_compile_error_msg;
-use proc_macro2::{Span, TokenStream};
+use crate::error::compile_error_msg;
+use proc_macro2::TokenStream;
 use pyo3::{ffi, AsPyPointer, PyObject, PyResult, Python};
 use std::str::FromStr;
 
 #[cfg(unix)]
-fn ensure_libpython_symbols_loaded(py: Python) -> PyResult<()>{
+fn ensure_libpython_symbols_loaded(py: Python) -> PyResult<()> {
 	// On Unix, Rustc loads proc-macro crates with RTLD_LOCAL, which (at least
 	// on Linux) means all their dependencies (in our case: libpython) don't
 	// get their symbols made available globally either. This means that
@@ -47,13 +47,10 @@ fn run_and_capture(py: Python, code: PyObject) -> PyResult<String> {
 	stdout.call_method0("getvalue")?.extract()
 }
 
-pub fn run_ct_python(py: Python, code: PyObject, tokens: TokenStream) -> Result<TokenStream, ()> {
-	let output = run_and_capture(py, code).map_err(|err| emit_compile_error_msg(py, err, tokens))?;
+pub fn run_ct_python(py: Python, code: PyObject, tokens: TokenStream) -> Result<TokenStream, TokenStream> {
+	let output = run_and_capture(py, code).map_err(|err| compile_error_msg(py, err, tokens))?;
 
-	Ok(TokenStream::from_str(&output).map_err(|e| {
-		Span::call_site()
-			.unwrap()
-			.error(format!("Unable to parse output of ct_python!{{}} script: {:?}", e))
-			.emit()
-	})?)
+	// TokenStream::from_str emits any errors directly, so we don't need to do
+	// anything with the returned LexError.
+	TokenStream::from_str(&output).map_err(|_| TokenStream::new())
 }

@@ -1,5 +1,4 @@
 #![feature(proc_macro_span)]
-#![feature(proc_macro_diagnostic)]
 
 extern crate proc_macro;
 
@@ -14,7 +13,7 @@ mod embed_python;
 mod error;
 mod run;
 
-fn python_impl(input: TokenStream) -> Result<TokenStream, ()> {
+fn python_impl(input: TokenStream) -> Result<TokenStream, TokenStream> {
 	let tokens = input.clone();
 
 	check_no_attribute(input.clone())?;
@@ -35,11 +34,11 @@ fn python_impl(input: TokenStream) -> Result<TokenStream, ()> {
 		let py = gil.python();
 
 		let code = PyObject::from_owned_ptr_or_err(py, ffi::Py_CompileString(python.as_ptr(), filename.as_ptr(), ffi::Py_file_input))
-			.map_err(|err| error::emit_compile_error_msg(py, err, tokens))?;
+			.map_err(|err| error::compile_error_msg(py, err, tokens))?;
 
 		Literal::byte_string(
 			PyBytes::from_owned_ptr_or_err(py, ffi::PyMarshal_WriteObjectToString(code.as_ptr(), pyo3::marshal::VERSION))
-				.map_err(|_e| Span::call_site().unwrap().error("failed to generate python bytecode").emit())?
+				.map_err(|_e| quote!(compile_error!{"failed to generate python bytecode"}))?
 				.as_bytes(),
 		)
 	};
@@ -61,7 +60,7 @@ fn python_impl(input: TokenStream) -> Result<TokenStream, ()> {
 	})
 }
 
-fn ct_python_impl(input: TokenStream) -> Result<TokenStream, ()> {
+fn ct_python_impl(input: TokenStream) -> Result<TokenStream, TokenStream> {
 	let tokens = input.clone();
 
 	let filename = Span::call_site().unwrap().source_file().path().to_string_lossy().into_owned();
@@ -82,28 +81,23 @@ fn ct_python_impl(input: TokenStream) -> Result<TokenStream, ()> {
 
 	let code = unsafe {
 		PyObject::from_owned_ptr_or_err(py, ffi::Py_CompileString(python.as_ptr(), filename.as_ptr(), ffi::Py_file_input))
-			.map_err(|err| error::emit_compile_error_msg(py, err, tokens.clone()))?
+			.map_err(|err| error::compile_error_msg(py, err, tokens.clone()))?
 	};
 
 	run::run_ct_python(py, code, tokens)
 }
 
-fn check_no_attribute(input: TokenStream) -> Result<(), ()> {
+fn check_no_attribute(input: TokenStream) -> Result<(), TokenStream> {
 	let mut input = input.into_iter();
 	if let Some(token) = input.next() {
 		if token.to_string() == "#"
 			&& input.next().map_or(false, |t| t.to_string() == "!")
 			&& input.next().map_or(false, |t| t.to_string().starts_with('['))
 		{
-			token
-				.span()
-				.unwrap()
-				.error(
-					"Attributes in python!{} are no longer supported. \
-					Use context.run(python!{..}) to use a context.",
-				)
-				.emit();
-			return Err(());
+			return Err(quote!(compile_error!{
+				"Attributes in python!{} are no longer supported. \
+				Use context.run(python!{..}) to use a context.",
+			}));
 		}
 	}
 	Ok(())
@@ -113,7 +107,7 @@ fn check_no_attribute(input: TokenStream) -> Result<(), ()> {
 pub fn python(input: TokenStream1) -> TokenStream1 {
 	TokenStream1::from(match python_impl(TokenStream::from(input)) {
 		Ok(tokens) => tokens,
-		Err(()) => TokenStream::new(),
+		Err(tokens) => tokens,
 	})
 }
 
@@ -121,6 +115,6 @@ pub fn python(input: TokenStream1) -> TokenStream1 {
 pub fn ct_python(input: TokenStream1) -> TokenStream1 {
 	TokenStream1::from(match ct_python_impl(TokenStream::from(input)) {
 		Ok(tokens) => tokens,
-		Err(()) => quote!(unimplemented!()).into()
+		Err(tokens) => tokens,
 	})
 }
