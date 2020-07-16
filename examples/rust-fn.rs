@@ -1,5 +1,3 @@
-#![feature(proc_macro_hygiene)]
-
 use inline_python::{python, Context};
 use pyo3::{prelude::*, wrap_pyfunction};
 

@@ -5,7 +5,6 @@ Inline Python code directly in your Rust code.
 ## Example
 
 ```rust
-#![feature(proc_macro_hygiene)]
 use inline_python::python;
 
 fn main() {
@@ -22,8 +21,6 @@ fn main() {
 ## How to use
 
 Use the `python!{..}` macro to write Python code directly in your Rust code.
-You'll need to add `#![feature(proc_macro_hygiene)]`, and use a nightly
-version of the compiler that supports this feature.
 
 ### Using Rust variables
 

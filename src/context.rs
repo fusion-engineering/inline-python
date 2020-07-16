@@ -7,7 +7,6 @@ use pyo3::{types::PyDict, AsPyRef, FromPyObject, Py, PyObject, PyResult, Python,
 /// This can be used to keep all global variables and imports intact between macro invocations:
 ///
 /// ```
-/// # #![feature(proc_macro_hygiene)]
 /// # use inline_python::{Context, python};
 /// let c = Context::new();
 ///
@@ -24,7 +23,6 @@ use pyo3::{types::PyDict, AsPyRef, FromPyObject, Py, PyObject, PyResult, Python,
 /// or set global variables before running:
 ///
 /// ```
-/// # #![feature(proc_macro_hygiene)]
 /// # use inline_python::{Context, python};
 /// let c = Context::new();
 ///
@@ -131,7 +129,6 @@ impl Context {
 	/// Use this with `pyo3::wrap_pyfunction` or `pyo3::wrap_pymodule`.
 	///
 	/// ```ignore
-	/// # #![feature(proc_macro_hygiene)]
 	/// # use inline_python::{Context, python};
 	/// use pyo3::{prelude::*, wrap_pyfunction};
 	///
@@ -171,7 +168,6 @@ impl Context {
 	/// This function should be called using the `python!{}` macro:
 	///
 	/// ```
-	/// # #![feature(proc_macro_hygiene)]
 	/// # use inline_python::{Context, python};
 	/// let c = Context::new();
 	///

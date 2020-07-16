@@ -1,5 +1,3 @@
-#![feature(proc_macro_hygiene)]
-
 use inline_python::python;
 
 #[test]

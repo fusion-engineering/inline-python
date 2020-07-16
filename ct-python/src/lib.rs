@@ -3,7 +3,6 @@
 //! # Example
 //!
 //! ```
-//! #![feature(proc_macro_hygiene)]
 //! use ct_python::ct_python;
 //!
 //! static SIN_2: f64 = ct_python! {
@@ -26,9 +25,6 @@
 //! Python script.
 //! The output of the script (`print()` and anything else through `sys.stdout`)
 //! is captured, and will be parsed as Rust code.
-//!
-//! If you want to use the macro to generate an expression (as in the example),
-//! you'll need to add `#![feature(proc_macro_hygiene)]`.
 //!
 //! ## Python Errors
 //!

@@ -3,7 +3,6 @@
 //! # Example
 //!
 //! ```
-//! #![feature(proc_macro_hygiene)]
 //! use inline_python::python;
 //!
 //! fn main() {
@@ -20,8 +19,6 @@
 //! # How to use
 //!
 //! Use the `python!{..}` macro to write Python code directly in your Rust code.
-//! You'll need to add `#![feature(proc_macro_hygiene)]`, and use a nightly
-//! version of the compiler that supports this feature.
 //!
 //! ## Using Rust variables
 //!
@@ -34,7 +31,6 @@
 //! The context can be re-used for multiple invocations to share global variables across macro calls.
 //!
 //! ```
-//! # #![feature(proc_macro_hygiene)]
 //! # use inline_python::{Context, python};
 //! let c = Context::new();
 //!
@@ -52,7 +48,6 @@
 //! in it.
 //!
 //! ```
-//! # #![feature(proc_macro_hygiene)]
 //! # use inline_python::{Context, python};
 //! let c: Context = python! {
 //!   foo = 5
@@ -70,7 +65,6 @@
 //! [`Context::get`].
 //!
 //! ```
-//! # #![feature(proc_macro_hygiene)]
 //! # use inline_python::{Context, python};
 //! let c: Context = python! {
 //!   foo = 5
