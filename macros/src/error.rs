@@ -7,12 +7,12 @@ use pyo3::{PyAny, AsPyRef, PyErr, PyResult, Python, ToPyObject};
 pub fn compile_error_msg(py: Python, error: PyErr, tokens: TokenStream) -> TokenStream {
 	let value = error.to_object(py);
 
-	if value.is_none() {
+	if value.is_none(py) {
 		let error = format!("python: {}", error.ptype.as_ref(py).name());
 		return quote!(compile_error!{#error});
 	}
 
-	if error.matches(py, pyo3::exceptions::SyntaxError::type_object()) {
+	if error.matches(py, pyo3::exceptions::SyntaxError::type_object(py)) {
 		let line: Option<usize> = value.getattr(py, "lineno").ok().and_then(|x| x.extract(py).ok());
 		let msg: Option<String> = value.getattr(py, "msg").ok().and_then(|x| x.extract(py).ok());
 		if let (Some(line), Some(msg)) = (line, msg) {
