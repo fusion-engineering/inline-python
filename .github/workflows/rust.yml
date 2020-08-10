@@ -3,7 +3,14 @@ on:
   push: { branches: "master" }
   pull_request: { branches: "*" }
 jobs:
+  check-fmt:
+    name: Check formatting
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - run: cargo fmt -- --check
   build:
+    name: Build and test
     runs-on: ubuntu-latest
     steps:
     - name: Install Rust nightly
