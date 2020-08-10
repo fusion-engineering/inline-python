@@ -1,4 +1,5 @@
-use proc_macro2::{Span, TokenStream};
+use proc_macro::Span;
+use proc_macro2::TokenStream;
 use pyo3::type_object::PyTypeObject;
 use pyo3::{AsPyRef, PyAny, PyErr, PyResult, Python, ToPyObject};
 use quote::{quote, quote_spanned};
@@ -18,18 +19,18 @@ pub fn compile_error_msg(py: Python, error: PyErr, tokens: TokenStream) -> Token
 		if let (Some(line), Some(msg)) = (line, msg) {
 			if let Some(span) = span_for_line(tokens.clone(), line) {
 				let error = format!("python: {}", msg);
-				return quote_spanned!(span => compile_error!{#error});
+				return quote_spanned!(span.into() => compile_error!{#error});
 			}
 		}
 	}
 
 	if let Some(tb) = &error.ptraceback {
 		if let Ok((file, line)) = get_traceback_info(tb.as_ref(py)) {
-			if file == Span::call_site().unwrap().source_file().path().to_string_lossy() {
+			if file == Span::call_site().source_file().path().to_string_lossy() {
 				if let Ok(msg) = value.as_ref(py).str() {
 					if let Some(span) = span_for_line(tokens, line) {
 						let error = format!("python: {}", msg);
-						return quote_spanned!(span => compile_error!{#error});
+						return quote_spanned!(span.into() => compile_error!{#error});
 					}
 				}
 			}
@@ -64,5 +65,5 @@ fn span_for_line(input: TokenStream, line: usize) -> Option<Span> {
 		}
 	}
 
-	Some(Span::from(result))
+	Some(result)
 }

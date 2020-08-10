@@ -5,8 +5,8 @@
 extern crate proc_macro;
 
 use self::embed_python::EmbedPython;
-use proc_macro::TokenStream as TokenStream1;
-use proc_macro2::{Literal, Span, TokenStream};
+use proc_macro::{Span, TokenStream as TokenStream1};
+use proc_macro2::{Literal, TokenStream};
 use pyo3::{ffi, types::PyBytes, AsPyPointer, FromPyPointer, PyObject, Python};
 use quote::quote;
 use std::ffi::CString;
@@ -20,7 +20,7 @@ fn python_impl(input: TokenStream) -> Result<TokenStream, TokenStream> {
 
 	check_no_attribute(input.clone())?;
 
-	let filename = Span::call_site().unwrap().source_file().path().to_string_lossy().into_owned();
+	let filename = Span::call_site().source_file().path().to_string_lossy().into_owned();
 
 	let mut x = EmbedPython::new();
 
@@ -65,7 +65,7 @@ fn python_impl(input: TokenStream) -> Result<TokenStream, TokenStream> {
 fn ct_python_impl(input: TokenStream) -> Result<TokenStream, TokenStream> {
 	let tokens = input.clone();
 
-	let filename = Span::call_site().unwrap().source_file().path().to_string_lossy().into_owned();
+	let filename = Span::call_site().source_file().path().to_string_lossy().into_owned();
 
 	let mut x = EmbedPython::new();
 
