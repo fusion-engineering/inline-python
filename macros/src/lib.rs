@@ -40,7 +40,7 @@ fn python_impl(input: TokenStream) -> Result<TokenStream, TokenStream> {
 
 		Literal::byte_string(
 			PyBytes::from_owned_ptr_or_err(py, ffi::PyMarshal_WriteObjectToString(code.as_ptr(), pyo3::marshal::VERSION))
-				.map_err(|_e| quote!(compile_error!{"failed to generate python bytecode"}))?
+				.map_err(|_e| quote!(compile_error! {"failed to generate python bytecode"}))?
 				.as_bytes(),
 		)
 	};
@@ -96,7 +96,7 @@ fn check_no_attribute(input: TokenStream) -> Result<(), TokenStream> {
 			&& input.next().map_or(false, |t| t.to_string() == "!")
 			&& input.next().map_or(false, |t| t.to_string().starts_with('['))
 		{
-			return Err(quote!(compile_error!{
+			return Err(quote!(compile_error! {
 				"Attributes in python!{} are no longer supported. \
 				Use context.run(python!{..}) to use a context.",
 			}));

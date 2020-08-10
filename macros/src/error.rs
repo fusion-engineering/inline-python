@@ -1,7 +1,7 @@
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned};
 use pyo3::type_object::PyTypeObject;
-use pyo3::{PyAny, AsPyRef, PyErr, PyResult, Python, ToPyObject};
+use pyo3::{AsPyRef, PyAny, PyErr, PyResult, Python, ToPyObject};
+use quote::{quote, quote_spanned};
 
 /// Format a nice error message for a python compilation error.
 pub fn compile_error_msg(py: Python, error: PyErr, tokens: TokenStream) -> TokenStream {
@@ -9,7 +9,7 @@ pub fn compile_error_msg(py: Python, error: PyErr, tokens: TokenStream) -> Token
 
 	if value.is_none(py) {
 		let error = format!("python: {}", error.ptype.as_ref(py).name());
-		return quote!(compile_error!{#error});
+		return quote!(compile_error! {#error});
 	}
 
 	if error.matches(py, pyo3::exceptions::SyntaxError::type_object(py)) {
@@ -37,7 +37,7 @@ pub fn compile_error_msg(py: Python, error: PyErr, tokens: TokenStream) -> Token
 	}
 
 	let error = format!("python: {}", value.as_ref(py).str().unwrap());
-	quote!(compile_error!{#error})
+	quote!(compile_error! {#error})
 }
 
 fn get_traceback_info(tb: &PyAny) -> PyResult<(String, usize)> {
