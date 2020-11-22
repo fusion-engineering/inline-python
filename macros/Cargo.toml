@@ -1,6 +1,6 @@
 [package]
 name = "inline-python-macros"
-version = "0.5.3"
+version = "0.7.0"
 authors = [
 	"Mara Bos <m-ou.se@m-ou.se>",
 	"Maarten de Vries <maarten@de-vri.es>",

@@ -1,6 +1,6 @@
 [package]
 name = "ct-python"
-version = "0.5.1"
+version = "0.5.2"
 authors = ["Mara Bos <m-ou.se@m-ou.se>"]
 description = "Execute Python code at compile time to generate Rust code"
 license = "BSD-2-Clause"
@@ -9,4 +9,4 @@ repository = "https://github.com/fusion-engineering/inline-python/tree/master/ct
 keywords = ["python", "macro", "generate", "compile-time"]
 
 [dependencies]
-inline-python-macros = { version = "0.5.1", path = "../macros" }
+inline-python-macros = { version = "0.7.0", path = "../macros" }
