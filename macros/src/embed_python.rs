@@ -24,6 +24,7 @@ impl EmbedPython {
 	}
 
 	fn add_whitespace(&mut self, span: Span, loc: LineColumn) -> Result<(), TokenStream> {
+		#[allow(clippy::comparison_chain)]
 		if loc.line > self.loc.line {
 			while loc.line > self.loc.line {
 				self.python.push('\n');

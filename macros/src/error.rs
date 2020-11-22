@@ -60,7 +60,7 @@ fn span_for_line(input: TokenStream, line: usize) -> Option<Span> {
 	let mut result = spans.next()?;
 	for span in spans {
 		result = match result.join(span) {
-			None => return Some(Span::from(result)),
+			None => return Some(result),
 			Some(span) => span,
 		}
 	}

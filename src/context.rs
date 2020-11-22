@@ -45,6 +45,7 @@ impl Context {
 	/// If you already have the GIL, you can use [`Context::new_with_gil`] instead.
 	///
 	/// This function panics if it fails to create the context.
+	#[allow(clippy::new_without_default)]
 	pub fn new() -> Self {
 		Self::new_with_gil(Python::acquire_gil().python())
 	}
@@ -190,13 +191,13 @@ impl Context {
 	/// [`Context::run`].
 	///
 	/// This function panics if the Python code fails.
-	pub fn run_with_gil<'p, F: FnOnce(&PyDict)>(&self, py: Python<'p>, code: PythonBlock<F>) {
+	pub fn run_with_gil<F: FnOnce(&PyDict)>(&self, py: Python<'_>, code: PythonBlock<F>) {
 		(code.set_variables)(self.globals(py));
 		match run_python_code(py, self, code.bytecode) {
 			Ok(_) => (),
 			Err(e) => {
 				e.print(py);
-				panic!("python!{...} failed to execute");
+				panic!("{}", "python!{...} failed to execute");
 			}
 		}
 	}
