@@ -1,6 +1,6 @@
 use crate::run::run_python_code;
 use crate::PythonBlock;
-use pyo3::{types::PyDict, AsPyRef, FromPyObject, Py, PyObject, PyResult, Python, ToPyObject};
+use pyo3::{types::PyDict, FromPyObject, Py, PyObject, PyResult, Python, ToPyObject};
 
 /// An execution context for Python code.
 ///
@@ -151,15 +151,21 @@ impl Context {
 	///
 	/// This function temporarily acquires the GIL.
 	/// If you already have the GIL, you can use [`Context::add_wrapped_with_gil`] instead.
-	pub fn add_wrapped(&self, wrapper: &impl Fn(Python) -> PyObject) {
+	pub fn add_wrapped<T>(&self, wrapper: &impl Fn(Python<'_>) -> T)
+	where
+		T: pyo3::callback::IntoPyCallbackOutput<PyObject>,
+	{
 		self.add_wrapped_with_gil(Python::acquire_gil().python(), wrapper);
 	}
 
 	/// Add a wrapped #[pyfunction] or #[pymodule] using its own `__name__`.
 	///
 	/// See [Context::add_wrapped].
-	pub fn add_wrapped_with_gil<'p>(&self, py: Python<'p>, wrapper: &impl Fn(Python) -> PyObject) {
-		let obj = wrapper(py);
+	pub fn add_wrapped_with_gil<T>(&self, py: Python<'_>, wrapper: &impl Fn(Python<'_>) -> T)
+	where
+		T: pyo3::callback::IntoPyCallbackOutput<PyObject>,
+	{
+		let obj = wrapper(py).convert(py).unwrap();
 		let name = obj.getattr(py, "__name__").expect("Missing __name__");
 		self.set_with_gil(py, name.extract(py).unwrap(), obj)
 	}
