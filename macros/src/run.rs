@@ -15,8 +15,8 @@ fn ensure_libpython_symbols_loaded(py: Python) -> PyResult<()> {
 	// time with RTLD_GLOBAL enabled.
 
 	let sysconfig = py.import("sysconfig")?;
-	let libdir: String = sysconfig.call1("get_config_var", ("LIBDIR",))?.extract()?;
-	let so_name: String = sysconfig.call1("get_config_var", ("INSTSONAME",))?.extract()?;
+	let libdir: String = sysconfig.getattr("get_config_var")?.call1(("LIBDIR",))?.extract()?;
+	let so_name: String = sysconfig.getattr("get_config_var")?.call1(("INSTSONAME",))?.extract()?;
 	let path = std::ffi::CString::new(format!("{}/{}", libdir, so_name)).unwrap();
 	unsafe {
 		libc::dlopen(path.as_ptr(), libc::RTLD_NOW | libc::RTLD_GLOBAL);
@@ -33,7 +33,7 @@ fn run_and_capture(py: Python, code: PyObject) -> PyResult<String> {
 	let sys = py.import("sys")?;
 	let io = py.import("io")?;
 
-	let stdout = io.call0("StringIO")?;
+	let stdout = io.getattr("StringIO")?.call0()?;
 	let original_stdout = sys.dict().get_item("stdout");
 	sys.dict().set_item("stdout", stdout)?;
 

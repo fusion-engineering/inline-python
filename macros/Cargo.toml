@@ -1,6 +1,6 @@
 [package]
 name = "inline-python-macros"
-version = "0.5.3"
+version = "0.7.0"
 authors = [
 	"Mara Bos <m-ou.se@m-ou.se>",
 	"Maarten de Vries <maarten@de-vri.es>",
@@ -16,7 +16,7 @@ proc_macro = true
 [dependencies]
 proc-macro2 = { version = "1.0", features = ["span-locations"] }
 quote = "1.0"
-pyo3 = { version = "0.11.0", default-features = false }
+pyo3 = { version = "0.14.0", default-features = false, features = ["auto-initialize"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.71"
