@@ -21,4 +21,4 @@ jobs:
     - name: Run tests
       run: cargo +nightly test --verbose
     - name: Build examples
-      run: cd examples && cargo +nightly build --all --verbose
+      run: cd examples && cargo +nightly build --all-targets --verbose
