@@ -109,7 +109,16 @@ impl EmbedPython {
 					self.loc = token.span().unwrap().end();
 				}
 				TokenTree::Literal(x) => {
-					write!(&mut self.python, "{}", x).unwrap();
+					let s = x.to_string();
+					// Remove space in prefixed strings like `f ".."`.
+					// (`f".."` is not allowed in some versions+editions of Rust.)
+					if s.starts_with('"')
+						&& self.python.ends_with(' ')
+						&& self.python[..self.python.len() - 1].ends_with(|c: char| c.is_ascii_alphabetic())
+					{
+						self.python.pop();
+					}
+					self.python += &s;
 					self.loc = token.span().unwrap().end();
 				}
 			}
