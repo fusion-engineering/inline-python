@@ -23,7 +23,7 @@ fn main() {
 		foo += 10
 	});
 
-	let x: i32 = result.get("foo");
+	let x: i32 = result.get("foo").unwrap();
 
 	assert_eq!(x, 137);
 

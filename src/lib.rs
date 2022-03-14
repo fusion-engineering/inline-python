@@ -68,7 +68,7 @@
 //!   foo = 5
 //! };
 //!
-//! assert_eq!(c.get::<i32>("foo"), 5);
+//! assert_eq!(c.get::<i32>("foo").unwrap(), 5);
 //! ```
 //!
 //! ## Syntax issues
@@ -112,8 +112,10 @@ use pyo3::{types::PyDict, Python};
 
 mod context;
 mod run;
+mod error;
 
 pub use self::context::Context;
+pub use error::PyVarError;
 pub use pyo3;
 
 /// A block of Python code within your Rust code.

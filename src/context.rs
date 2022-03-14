@@ -1,4 +1,4 @@
-use crate::run::run_python_code;
+use crate::{run::run_python_code, PyVarError};
 use crate::PythonBlock;
 use pyo3::{
 	types::{PyCFunction, PyDict},
@@ -35,7 +35,7 @@ use pyo3::{
 ///   foo = x + 2
 /// });
 ///
-/// assert_eq!(c.get::<i32>("foo"), 15);
+/// assert_eq!(c.get::<i32>("foo").unwrap(), 15);
 /// ```
 pub struct Context {
 	pub(crate) globals: Py<PyDict>,
@@ -85,14 +85,25 @@ impl Context {
 	/// If you already have the GIL, you can use [`Context::get_with_gil`] instead.
 	///
 	/// This function panics if the variable doesn't exist, or the conversion fails.
-	pub fn get<T: for<'p> FromPyObject<'p>>(&self, name: &str) -> T {
+	pub fn get<T: for<'p> FromPyObject<'p>>(&self, name: &str) -> Result<T, PyVarError> {
 		self.get_with_gil(Python::acquire_gil().python(), name)
 	}
 
 	/// Retrieve a global variable from the context.
 	///
 	/// This function panics if the variable doesn't exist, or the conversion fails.
-	pub fn get_with_gil<'p, T: FromPyObject<'p>>(&'p self, py: Python<'p>, name: &str) -> T {
+	pub fn get_with_gil<'p, T: FromPyObject<'p>>(&'p self, py: Python<'p>, name: &str) -> Result<T, PyVarError> {
+		let value = self
+			.globals(py)
+			.get_item(name)
+			.ok_or_else(|| PyVarError::NotFound(name.into(), std::any::type_name::<T>().into()))?;
+		FromPyObject::extract(value).map_err(|e| {
+			e.print(py);
+			PyVarError::WrongType(name.into())
+		})
+	}
+
+	pub fn old_get_with_gil<'p, T: FromPyObject<'p>>(&'p self, py: Python<'p>, name: &str) -> T {
 		match self.globals(py).get_item(name) {
 			None => panic!("Python context does not contain a variable named `{}`", name),
 			Some(value) => match FromPyObject::extract(value) {
