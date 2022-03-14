@@ -1,0 +1,7 @@
+{
+    "rust-analyzer.diagnostics.disabled": [
+        "macro-error",
+        "unresolved-macro-call"
+    ],
+    "git.autofetch": "all"
+}

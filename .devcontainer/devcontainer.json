@@ -1,0 +1,32 @@
+{
+	"name": "Rust",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"args": {
+			"VARIANT": "bullseye"
+		}
+	},
+	"runArgs": [
+		"--cap-add=SYS_PTRACE",
+		"--security-opt",
+		"seccomp=unconfined"
+	],
+
+	"settings": {
+		"lldb.executable": "/usr/bin/lldb",
+		"files.watcherExclude": {
+			"**/target/**": true
+		},
+		"rust-analyzer.checkOnSave.command": "clippy"
+	},
+
+	"extensions": [
+		"vadimcn.vscode-lldb",
+		"mutantdino.resourcemonitor",
+		"matklad.rust-analyzer",
+		"tamasfe.even-better-toml",
+		"serayuzgur.crates"
+	],
+
+	"remoteUser": "vscode"
+}
