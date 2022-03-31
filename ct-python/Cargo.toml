@@ -9,4 +9,4 @@ repository = "https://github.com/fusion-engineering/inline-python/tree/master/ct
 keywords = ["python", "macro", "generate", "compile-time"]
 
 [dependencies]
-inline-python-macros = { version = "=0.8.0", path = "../macros" }
+inline-python-macros = { version = "=0.9.0", path = "../macros" }
