@@ -32,17 +32,17 @@ fn python_impl(input: TokenStream) -> Result<TokenStream, TokenStream> {
 	let filename = CString::new(filename).unwrap();
 
 	let bytecode = unsafe {
-		let gil = Python::acquire_gil();
-		let py = gil.python();
+		let result: Result<Literal, TokenStream> = Python::with_gil(|py| {
+			let code = PyObject::from_owned_ptr_or_err(py, ffi::Py_CompileString(python.as_ptr(), filename.as_ptr(), ffi::Py_file_input))
+				.map_err(|err| error::compile_error_msg(py, err, tokens))?;
 
-		let code = PyObject::from_owned_ptr_or_err(py, ffi::Py_CompileString(python.as_ptr(), filename.as_ptr(), ffi::Py_file_input))
-			.map_err(|err| error::compile_error_msg(py, err, tokens))?;
-
-		Literal::byte_string(
-			PyBytes::from_owned_ptr_or_err(py, ffi::PyMarshal_WriteObjectToString(code.as_ptr(), pyo3::marshal::VERSION))
-				.map_err(|_e| quote!(compile_error! {"failed to generate python bytecode"}))?
-				.as_bytes(),
-		)
+			Ok(Literal::byte_string(
+				PyBytes::from_owned_ptr_or_err(py, ffi::PyMarshal_WriteObjectToString(code.as_ptr(), pyo3::marshal::VERSION))
+					.map_err(|_e| quote!(compile_error! {"failed to generate python bytecode"}))?
+					.as_bytes(),
+			))
+		});
+		result?
 	};
 
 	let varname = variables.keys();
@@ -78,15 +78,14 @@ fn ct_python_impl(input: TokenStream) -> Result<TokenStream, TokenStream> {
 	let python = CString::new(python).unwrap();
 	let filename = CString::new(filename).unwrap();
 
-	let gil = Python::acquire_gil();
-	let py = gil.python();
+	Python::with_gil(|py| {
+		let code = unsafe {
+			PyObject::from_owned_ptr_or_err(py, ffi::Py_CompileString(python.as_ptr(), filename.as_ptr(), ffi::Py_file_input))
+				.map_err(|err| error::compile_error_msg(py, err, tokens.clone()))?
+		};
 
-	let code = unsafe {
-		PyObject::from_owned_ptr_or_err(py, ffi::Py_CompileString(python.as_ptr(), filename.as_ptr(), ffi::Py_file_input))
-			.map_err(|err| error::compile_error_msg(py, err, tokens.clone()))?
-	};
-
-	run::run_ct_python(py, code, tokens)
+		run::run_ct_python(py, code, tokens)
+	})
 }
 
 fn check_no_attribute(input: TokenStream) -> Result<(), TokenStream> {

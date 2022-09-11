@@ -1,7 +1,6 @@
 use proc_macro::Span;
 use proc_macro2::TokenStream;
-use pyo3::type_object::PyTypeObject;
-use pyo3::{PyAny, PyErr, PyResult, Python, ToPyObject};
+use pyo3::{PyAny, PyErr, PyResult, PyTypeInfo, Python, ToPyObject};
 use quote::{quote, quote_spanned};
 
 /// Format a nice error message for a python compilation error.
