@@ -128,7 +128,7 @@ impl Context {
 		}
 	}
 
-	/// Add a wrapped #[pyfunction] or #[pymodule] using its own `__name__`.
+	/// Add a wrapped `#[pyfunction]` or `#[pymodule]` using its own `__name__`.
 	///
 	/// Use this with `pyo3::wrap_pyfunction` or `pyo3::wrap_pymodule`.
 	///
@@ -158,7 +158,7 @@ impl Context {
 		self.add_wrapped_with_gil(Python::acquire_gil().python(), wrapper);
 	}
 
-	/// Add a wrapped #[pyfunction] or #[pymodule] using its own `__name__`.
+	/// Add a wrapped `#[pyfunction]` or `#[pymodule]` using its own `__name__`.
 	///
 	/// See [Context::add_wrapped].
 	pub fn add_wrapped_with_gil<'p>(&self, py: Python<'p>, wrapper: &impl Fn(Python) -> PyResult<&PyCFunction>) {
