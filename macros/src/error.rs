@@ -1,7 +1,6 @@
 use proc_macro::Span;
 use proc_macro2::TokenStream;
-use pyo3::type_object::PyTypeObject;
-use pyo3::{PyAny, PyErr, PyResult, Python, ToPyObject};
+use pyo3::{PyAny, PyErr, PyResult, PyTypeInfo, Python, ToPyObject};
 use quote::{quote, quote_spanned};
 
 /// Format a nice error message for a python compilation error.
@@ -9,7 +8,7 @@ pub fn compile_error_msg(py: Python, error: PyErr, tokens: TokenStream) -> Token
 	let value = error.to_object(py);
 
 	if value.is_none(py) {
-		let error = format!("python: {}", error.ptype(py).name().unwrap());
+		let error = format!("python: {}", error.get_type(py).name().unwrap());
 		return quote!(compile_error! {#error});
 	}
 
@@ -24,7 +23,7 @@ pub fn compile_error_msg(py: Python, error: PyErr, tokens: TokenStream) -> Token
 		}
 	}
 
-	if let Some(tb) = &error.ptraceback(py) {
+	if let Some(tb) = &error.traceback(py) {
 		if let Ok((file, line)) = get_traceback_info(tb) {
 			if file == Span::call_site().source_file().path().to_string_lossy() {
 				if let Ok(msg) = value.as_ref(py).str() {

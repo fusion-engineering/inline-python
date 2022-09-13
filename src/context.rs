@@ -50,7 +50,7 @@ impl Context {
 	/// This function panics if it fails to create the context.
 	#[allow(clippy::new_without_default)]
 	pub fn new() -> Self {
-		Self::new_with_gil(Python::acquire_gil().python())
+		Python::with_gil(Self::new_with_gil)
 	}
 
 	/// Create a new context for running Python code.
@@ -86,7 +86,7 @@ impl Context {
 	///
 	/// This function panics if the variable doesn't exist, or the conversion fails.
 	pub fn get<T: for<'p> FromPyObject<'p>>(&self, name: &str) -> T {
-		self.get_with_gil(Python::acquire_gil().python(), name)
+		Python::with_gil(|py| self.get_with_gil(py, name))
 	}
 
 	/// Retrieve a global variable from the context.
@@ -112,7 +112,7 @@ impl Context {
 	///
 	/// This function panics if the conversion fails.
 	pub fn set<T: ToPyObject>(&self, name: &str, value: T) {
-		self.set_with_gil(Python::acquire_gil().python(), name, value)
+		Python::with_gil(|py| self.set_with_gil(py, name, value));
 	}
 
 	/// Set a global variable in the context.
@@ -155,7 +155,7 @@ impl Context {
 	/// This function temporarily acquires the GIL.
 	/// If you already have the GIL, you can use [`Context::add_wrapped_with_gil`] instead.
 	pub fn add_wrapped(&self, wrapper: &impl Fn(Python) -> PyResult<&PyCFunction>) {
-		self.add_wrapped_with_gil(Python::acquire_gil().python(), wrapper);
+		Python::with_gil(|py| self.add_wrapped_with_gil(py, wrapper));
 	}
 
 	/// Add a wrapped `#[pyfunction]` or `#[pymodule]` using its own `__name__`.
@@ -185,7 +185,7 @@ impl Context {
 	///
 	/// This function panics if the Python code fails.
 	pub fn run<F: FnOnce(&PyDict)>(&self, code: PythonBlock<F>) {
-		self.run_with_gil(Python::acquire_gil().python(), code);
+		Python::with_gil(|py| self.run_with_gil(py, code));
 	}
 
 	/// Run Python code using this context.

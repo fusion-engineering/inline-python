@@ -20,7 +20,7 @@
 //!
 //! _NOTE:_ Rust **nightly** toolchain is required. Feature `proc_macro_span` is still unstable,
 //! for more details check out [issue #54725](https://github.com/rust-lang/rust/issues/54725) - Tracking issue for `proc_macro::Span` inspection APIs
-//! 
+//!
 //! ## Using Rust variables
 //!
 //! To reference Rust variables, use `'var`, as shown in the example above.
@@ -154,11 +154,11 @@ impl<F: FnOnce(&PyDict)> FromInlinePython<F> for () {
 /// Assigning a `python!{}` block to a `Context` will run the Python code and capture the resulting context.
 impl<F: FnOnce(&PyDict)> FromInlinePython<F> for Context {
 	fn from_python_macro(bytecode: &'static [u8], set_variables: F) -> Self {
-		let gil_guard = Python::acquire_gil();
-		let py = gil_guard.python();
-		let context = Context::new_with_gil(py);
-		context.run_with_gil(py, PythonBlock { bytecode, set_variables });
-		context
+		Python::with_gil(|py| {
+			let context = Context::new_with_gil(py);
+			context.run_with_gil(py, PythonBlock { bytecode, set_variables });
+			context
+		})
 	}
 }
 
