@@ -1,6 +1,27 @@
 # inline-python
 
-Inline Python code directly in your Rust code.
+[inline-python](https://github.com/fusion-engineering/inline-python) is Rust library that makes it possible to write Python code directly inside Rust code, to combine the best of both worlds.
+
+## Getting started
+
+To use this library in your Rust project, add the following to your Cargo.toml file:
+
+```toml
+[dependencies]
+inline-python = "0.10.0"
+```
+
+Or add it directly:
+
+```bash
+cargo add inline-python
+```
+
+**IMPORTANT**: If you encounter error: `#![feature]` may not be used on the stable release channel, switch to the nightly release channel of Rust, which allows the use of unstable features like `proc_macro_span`. You can switch to the nightly channel by running:
+
+```bash
+rustup default nightly
+```
 
 ## Example
 
@@ -22,7 +43,7 @@ fn main() {
 
 Use the `python!{..}` macro to write Python code directly in your Rust code.
 
-_NOTE:_ Rust **nightly** toolchain is required. Feature `proc_macro_span` is still unstable, for more details check out [issue #54725 - 
+_NOTE:_ Rust **nightly** toolchain is required. Feature `proc_macro_span` is still unstable, for more details check out [issue #54725 -
 Tracking issue for `proc_macro::Span` inspection APIs](https://github.com/rust-lang/rust/issues/54725)
 
 ### Using Rust variables
