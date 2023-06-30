@@ -53,8 +53,8 @@ fn span_for_line(input: TokenStream, line: usize) -> Option<Span> {
 	let mut spans = input
 		.into_iter()
 		.map(|x| x.span().unwrap())
-		.skip_while(|span| span.start().line < line)
-		.take_while(|span| span.start().line == line);
+		.skip_while(|span| span.start().line() < line)
+		.take_while(|span| span.start().line() == line);
 
 	let mut result = spans.next()?;
 	for span in spans {

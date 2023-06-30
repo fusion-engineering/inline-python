@@ -1,5 +1,5 @@
-use proc_macro::{LineColumn, Span};
-use proc_macro2::{Delimiter, Ident, Spacing, TokenStream, TokenTree};
+use proc_macro::Span;
+use proc_macro2::{Delimiter, Ident, Spacing, TokenStream, TokenTree, LineColumn};
 use quote::quote_spanned;
 use std::collections::BTreeMap;
 use std::fmt::Write;
@@ -52,7 +52,9 @@ impl EmbedPython {
 
 		while let Some(token) = tokens.next() {
 			let span = token.span().unwrap();
-			self.add_whitespace(span, span.start())?;
+			let start_span = span.start();
+			let lc = LineColumn { line: start_span.line(), column: start_span.column() };
+			self.add_whitespace(span, lc)?;
 
 			match &token {
 				TokenTree::Group(x) => {
@@ -65,9 +67,10 @@ impl EmbedPython {
 					self.python.push_str(start);
 					self.loc.column += start.len();
 					self.add(x.stream())?;
-					let mut end_loc = token.span().unwrap().end();
-					end_loc.column = end_loc.column.saturating_sub(end.len());
-					self.add_whitespace(span, end_loc)?;
+					let end_loc = token.span().unwrap().end();
+					let end_col = end_loc.column().saturating_sub(end.len());
+					let elc = LineColumn { line: end_loc.line(), column: end_col };
+					self.add_whitespace(span, elc)?;
 					self.python.push_str(end);
 					self.loc.column += end.len();
 				}
@@ -106,7 +109,8 @@ impl EmbedPython {
 				}
 				TokenTree::Ident(x) => {
 					write!(&mut self.python, "{}", x).unwrap();
-					self.loc = token.span().unwrap().end();
+					let end_span = token.span().unwrap().end();
+					self.loc = LineColumn { line: end_span.line(), column: end_span.column() };
 				}
 				TokenTree::Literal(x) => {
 					let s = x.to_string();
@@ -119,7 +123,8 @@ impl EmbedPython {
 						self.python.pop();
 					}
 					self.python += &s;
-					self.loc = token.span().unwrap().end();
+					let end_span = token.span().unwrap().end();
+					self.loc = LineColumn { line: end_span.line(), column: end_span.column() };
 				}
 			}
 		}
