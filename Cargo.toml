@@ -1,6 +1,6 @@
 [package]
 name = "inline-python"
-version = "0.11.0"
+version = "0.12.0"
 authors = [
 	"Mara Bos <m-ou.se@m-ou.se>",
 	"Maarten de Vries <maarten@de-vri.es>",
@@ -13,7 +13,7 @@ keywords = ["python", "inline", "embed", "macro"]
 autoexamples = false
 
 [dependencies]
-inline-python-macros = { version = "=0.11.0", path = "./macros" }
+inline-python-macros = { version = "=0.12.0", path = "./macros" }
 pyo3 = { version = "0.19", default-features = false, features = ["auto-initialize"] }
 
 [workspace]
