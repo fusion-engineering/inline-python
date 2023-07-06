@@ -1,5 +1,5 @@
 use proc_macro::Span;
-use proc_macro2::{Delimiter, Ident, Spacing, TokenStream, TokenTree, LineColumn};
+use proc_macro2::{Delimiter, Ident, Spacing, TokenStream, TokenTree};
 use quote::quote_spanned;
 use std::collections::BTreeMap;
 use std::fmt::Write;
@@ -8,7 +8,8 @@ pub struct EmbedPython {
 	pub python: String,
 	pub variables: BTreeMap<String, Ident>,
 	pub first_indent: Option<usize>,
-	pub loc: LineColumn,
+	pub line: usize,
+	pub column: usize,
 	pub compile_time: bool,
 }
 
@@ -17,30 +18,31 @@ impl EmbedPython {
 		Self {
 			python: String::new(),
 			variables: BTreeMap::new(),
-			loc: LineColumn { line: 1, column: 0 },
+			line: 1,
+			column: 0,
 			first_indent: None,
 			compile_time: false,
 		}
 	}
 
-	fn add_whitespace(&mut self, span: Span, loc: LineColumn) -> Result<(), TokenStream> {
+	fn add_whitespace(&mut self, span: Span, line: usize, column: usize) -> Result<(), TokenStream> {
 		#[allow(clippy::comparison_chain)]
-		if loc.line > self.loc.line {
-			while loc.line > self.loc.line {
+		if line > self.line {
+			while line > self.line {
 				self.python.push('\n');
-				self.loc.line += 1;
+				self.line += 1;
 			}
-			let first_indent = *self.first_indent.get_or_insert(loc.column);
-			let indent = loc.column.checked_sub(first_indent);
+			let first_indent = *self.first_indent.get_or_insert(column);
+			let indent = column.checked_sub(first_indent);
 			let indent = indent.ok_or_else(|| quote_spanned!(span.into() => compile_error!{"Invalid indentation"}))?;
 			for _ in 0..indent {
 				self.python.push(' ');
 			}
-			self.loc.column = loc.column;
-		} else if loc.line == self.loc.line {
-			while loc.column > self.loc.column {
+			self.column = column;
+		} else if line == self.line {
+			while column > self.column {
 				self.python.push(' ');
-				self.loc.column += 1;
+				self.column += 1;
 			}
 		}
 
@@ -52,9 +54,7 @@ impl EmbedPython {
 
 		while let Some(token) = tokens.next() {
 			let span = token.span().unwrap();
-			let start_span = span.start();
-			let lc = LineColumn { line: start_span.line(), column: start_span.column() };
-			self.add_whitespace(span, lc)?;
+			self.add_whitespace(span, span.line(), span.column())?;
 
 			match &token {
 				TokenTree::Group(x) => {
@@ -65,14 +65,12 @@ impl EmbedPython {
 						Delimiter::None => ("", ""),
 					};
 					self.python.push_str(start);
-					self.loc.column += start.len();
+					self.column += start.len();
 					self.add(x.stream())?;
-					let end_loc = token.span().unwrap().end();
-					let end_col = end_loc.column().saturating_sub(end.len());
-					let elc = LineColumn { line: end_loc.line(), column: end_col };
-					self.add_whitespace(span, elc)?;
+					let end_span = token.span().unwrap().end();
+					self.add_whitespace(span, end_span.line(), end_span.column().saturating_sub(end.len()))?;
 					self.python.push_str(end);
-					self.loc.column += end.len();
+					self.column += end.len();
 				}
 				TokenTree::Punct(x) => {
 					if !self.compile_time && x.as_char() == '\'' && x.spacing() == Spacing::Joint {
@@ -83,7 +81,7 @@ impl EmbedPython {
 						};
 						let name_str = format!("_RUST_{}", name);
 						self.python.push_str(&name_str);
-						self.loc.column += name_str.chars().count() - 6 + 1;
+						self.column += name_str.chars().count() - 6 + 1;
 						self.variables.entry(name_str).or_insert(name);
 					} else if x.as_char() == '#' && x.spacing() == Spacing::Joint {
 						// Convert '##' to '//', because otherwise it's
@@ -91,12 +89,12 @@ impl EmbedPython {
 						match tokens.next() {
 							Some(TokenTree::Punct(ref p)) if p.as_char() == '#' => {
 								self.python.push_str("//");
-								self.loc.column += 2;
+								self.column += 2;
 							}
 							Some(TokenTree::Punct(p)) => {
 								self.python.push(x.as_char());
 								self.python.push(p.as_char());
-								self.loc.column += 2;
+								self.column += 2;
 							}
 							_ => {
 								unreachable!();
@@ -104,13 +102,14 @@ impl EmbedPython {
 						}
 					} else {
 						self.python.push(x.as_char());
-						self.loc.column += 1;
+						self.column += 1;
 					}
 				}
 				TokenTree::Ident(x) => {
 					write!(&mut self.python, "{}", x).unwrap();
 					let end_span = token.span().unwrap().end();
-					self.loc = LineColumn { line: end_span.line(), column: end_span.column() };
+					self.line = end_span.line();
+					self.column = end_span.column();
 				}
 				TokenTree::Literal(x) => {
 					let s = x.to_string();
@@ -124,7 +123,8 @@ impl EmbedPython {
 					}
 					self.python += &s;
 					let end_span = token.span().unwrap().end();
-					self.loc = LineColumn { line: end_span.line(), column: end_span.column() };
+					self.line = end_span.line();
+					self.column = end_span.column();
 				}
 			}
 		}
